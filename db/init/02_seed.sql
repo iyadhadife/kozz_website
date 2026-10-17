@@ -1,0 +1,107 @@
+SET NAMES utf8mb4;
+-- Données initiales (hypothèses tarifaires oct. 2026). price_confirmed = 0 : prix à confirmer
+
+INSERT INTO tiers (`key`,name,gb,days,icon,blurb,position) VALUES
+('city','City-break',1,7,'🏙️','Un week-end, un city-trip',0),
+('week','Semaine',3,10,'📅','Séjour d''une à deux semaines',1),
+('trip','Voyage',10,30,'🎒','Le best-seller, un mois de tranquillité',2),
+('unl','Illimité',NULL,10,'📶','Fair use 3–5 Go/jour, affiché dès l''achat',3);
+
+INSERT INTO destinations (id,name,zone,position) VALUES
+('ma','Maroc','Maghreb',0),
+('es','Espagne','Europe',1),
+('it','Italie','Europe',2),
+('pt','Portugal','Europe',3),
+('tn','Tunisie','Maghreb',4),
+('tr','Turquie','Moyen-Orient',5),
+('th','Thaïlande','Asie',6),
+('id','Indonésie (Bali)','Asie',7),
+('ae','Émirats (Dubaï)','Moyen-Orient',8),
+('us','États-Unis','Amériques',9),
+('vn','Vietnam','Asie',10),
+('jp','Japon','Asie',11),
+('sa','Arabie Saoudite','Moyen-Orient',12);
+
+INSERT INTO plans (destination_id,tier_key,price_ttc,price_confirmed) VALUES
+('ma','city',4.9,1),
+('ma','week',8.9,0),
+('ma','trip',17.9,1),
+('ma','unl',21.9,1),
+('es','city',4.5,0),
+('es','week',7.9,0),
+('es','trip',13.9,0),
+('es','unl',16.9,0),
+('it','city',4.5,0),
+('it','week',7.9,0),
+('it','trip',13.9,0),
+('it','unl',16.9,0),
+('pt','city',4.5,0),
+('pt','week',7.9,0),
+('pt','trip',13.9,0),
+('pt','unl',16.9,0),
+('tn','city',4.9,0),
+('tn','week',8.9,0),
+('tn','trip',15.9,0),
+('tn','unl',19.9,0),
+('tr','city',3.9,0),
+('tr','week',6.9,0),
+('tr','trip',11.9,0),
+('tr','unl',14.9,0),
+('th','city',4.5,1),
+('th','week',6.9,0),
+('th','trip',11.9,0),
+('th','unl',15.9,0),
+('id','city',4.5,1),
+('id','week',7.9,0),
+('id','trip',13.9,0),
+('id','unl',17.9,0),
+('ae','city',5.9,0),
+('ae','week',9.9,0),
+('ae','trip',16.9,0),
+('ae','unl',21.9,0),
+('us','city',5.9,0),
+('us','week',9.9,0),
+('us','trip',19.9,0),
+('us','unl',24.9,0),
+('vn','city',4.5,0),
+('vn','week',6.9,0),
+('vn','trip',10.9,0),
+('vn','unl',14.9,0),
+('jp','city',5.5,0),
+('jp','week',8.9,0),
+('jp','trip',15.9,0),
+('jp','unl',19.9,0),
+('sa','city',6.9,0),
+('sa','week',10.9,0),
+('sa','trip',18.9,0),
+('sa','unl',23.9,0);
+
+INSERT INTO subscription_plans (id,name,data_label,price_monthly,popular) VALUES
+('m10','Monde 10','10 Go / mois',14.9,0),
+('m25','Monde 25','25 Go / mois',24.9,1),
+('minf','Monde ∞','Illimité (fair use 5 Go/j)',39.9,0);
+
+INSERT INTO causes (id,category,name,unit,cost_per_unit,emoji,signature,position) VALUES
+('restos','Solidarité','Repas pour tous','repas offerts',0.2,'🍲',0,0),
+('inclusion','Solidarité','Inclusion numérique en France','h d''accompagnement',3,'🤝',0,1),
+('arbres','Planète','Reforestation','arbres plantés',0.8,'🌳',0,2),
+('ocean','Planète','Océans propres','kg de déchets collectés',0.5,'🌊',0,3),
+('tsf','Éducation & numérique','Data pour data','jours de connexion pour des réfugiés',0.5,'📡',1,4),
+('ecole','Éducation & numérique','École connectée','jours d''école connectée',1.5,'🏫',0,5),
+('soins','Santé & recherche','Accès aux soins','traitements financés',1,'💊',0,6),
+('recherche','Santé & recherche','Recherche médicale','h de recherche',3,'🔬',0,7),
+('nutrition','Enfance','Nutrition des enfants','jours de nutrition',0.3,'🧒',0,8),
+('livres','Enfance','Livres pour enfants','livres offerts',2,'📚',0,9),
+('eau','Humanitaire','Eau potable au Sahel','jours d''eau pour une famille',0.12,'💧',0,10),
+('energie','Humanitaire','Électricité solidaire','h d''électricité',0.25,'💡',0,11);
+
+INSERT INTO corridors (id,country,operators,soon,position) VALUES
+('ma','Maroc','["Maroc Telecom (IAM)", "Inwi", "Orange"]',0,0),
+('sn','Sénégal','["Orange (Sonatel)", "Free", "Expresso"]',0,1),
+('ci','Côte d''Ivoire','["MTN", "Moov", "Orange"]',0,2),
+('ml','Mali','["Orange Mali", "Moov", "Malitel"]',0,3),
+('cm','Cameroun','["MTN", "Orange", "Camtel"]',0,4),
+('tn','Tunisie','["Ooredoo", "Orange", "Tunisie Telecom"]',0,5),
+('lb','Liban','["touch", "alfa"]',0,6),
+('km','Comores','["Comores Telecom", "HURI"]',1,7),
+('dz','Algérie','["Mobilis", "Djezzy", "Ooredoo"]',1,8);

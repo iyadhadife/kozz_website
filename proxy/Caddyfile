@@ -1,0 +1,31 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# En-têtes de sécurité. Le paiement se fait sur checkout.stripe.com (redirection) : aucun script Stripe sur nos pages.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://flagcdn.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /chat/* {
+		uri strip_prefix /chat
+		reverse_proxy chatbot:8001 {
+			flush_interval -1   # streaming des réponses
+		}
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

@@ -1,0 +1,79 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import Section from "../components/Section.jsx";
+import Recharge from "../components/Recharge.jsx";
+import Impact from "../components/Impact.jsx";
+import HowItWorks from "../components/HowItWorks.jsx";
+import Faq from "../components/Faq.jsx";
+import { CAUSES, FAQ, MONDE, eur } from "../data.js";
+import { useStore } from "../store.jsx";
+
+export const RechargePage = () => <Recharge />;
+export const HowPage = () => <HowItWorks />;
+
+export function ImpactPage() {
+  const cats = [...new Set(CAUSES.map((c) => c.cat))];
+  return (
+    <>
+      <Impact />
+      <Section title="Les 12 causes" subtitle="Tu choisis ta kozz à chaque achat. Les ONG partenaires sont en cours de finalisation.">
+        {cats.map((cat) => (
+          <div key={cat} className="cat-block">
+            <h3>{cat}</h3>
+            <div className="dest-grid">
+              {CAUSES.filter((c) => c.cat === cat).map((c) => (
+                <motion.div key={c.id} className="card dest" whileHover={{ y: -6 }}>
+                  <span className="dest-emoji">{c.emoji}</span>
+                  <span className="dest-name">{c.name}</span>
+                  <small className="muted">{c.unit}</small>
+                  {c.signature && <span className="pill">Cause signature</span>}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </Section>
+    </>
+  );
+}
+
+export function HelpPage() {
+  const cats = [...new Set(FAQ.map((f) => f.cat))];
+  const [cat, setCat] = useState("Tout");
+  const items = cat === "Tout" ? FAQ : FAQ.filter((f) => f.cat === cat);
+  return (
+    <Section title="Centre d'aide" subtitle="Installation garantie : si ça ne s'installe pas, un humain prend le relais en moins de 5 minutes.">
+      <div className="chips">
+        {["Tout", ...cats].map((c) => (
+          <button key={c} className={`chip ${cat === c ? "on" : ""}`} onClick={() => setCat(c)}>
+            {cat === c && <motion.span layoutId="helpchip" className="chip-bg" />}
+            <span>{c}</span>
+          </button>
+        ))}
+      </div>
+      <Faq items={items} />
+      <p className="muted note">Une autre question ? Utilise le chat en bas à droite.</p>
+    </Section>
+  );
+}
+
+export function MondePage() {
+  const { add } = useStore();
+  return (
+    <Section title="Kozz Monde" subtitle="Une seule eSIM pour toutes les destinations, au même prix partout. Sans engagement, résiliation en 1 clic.">
+      <div className="tiers">
+        {MONDE.map((m) => (
+          <motion.article key={m.id} className={`card tier ${m.popular ? "featured" : ""}`} whileHover={{ y: -6 }}>
+            {m.popular && <span className="pill">Populaire</span>}
+            <span className="tier-icon">🌐</span>
+            <h3>{m.name}</h3>
+            <p className="big">{m.data}</p>
+            <p className="price">{eur(m.price)}<small className="muted"> /mois</small></p>
+            <button className="btn" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>Ajouter</button>
+          </motion.article>
+        ))}
+      </div>
+      <p className="muted note">Chaque facture mensuelle finance ta kozz : un abonnement solidaire.</p>
+    </Section>
+  );
+}
