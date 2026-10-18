@@ -4,6 +4,7 @@ import { animate, motion, useInView } from "framer-motion";
 import Section from "./Section.jsx";
 import { eur, fmtNum } from "../data.js";
 import { useStore } from "../store.jsx";
+import SharePassport from "./SharePassport.jsx";
 import { api } from "../api.js";
 
 import { t, tn } from "../i18n.js";
@@ -52,6 +53,7 @@ export default function Impact() {
             <span className="lbl">{t("Dons générés par tes achats")}</span>
             <strong className="big"><Counter value={data.total} format={eur} /></strong>
             <span className="muted">{tn(data.orders, "{n} commande", "{n} commandes")}</span>
+            <SharePassport user={user} total={data.total} />
           </div>
           <div className="tiers">
             {data.causes.map((c) => (

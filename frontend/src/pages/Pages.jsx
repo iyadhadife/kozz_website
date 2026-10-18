@@ -1,4 +1,7 @@
 import GlobalImpact from "../components/GlobalImpact.jsx";
+import ImpactStats from "../components/ImpactStats.jsx";
+import CausePhoto from "../components/CausePhoto.jsx";
+import { useGlobalImpact } from "../globalImpact.js";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Section from "../components/Section.jsx";
@@ -12,17 +15,21 @@ import { t } from "../i18n.js";
 export const HowPage = () => <HowItWorks />;
 
 export function ImpactPage() {
+  const g = useGlobalImpact();
+  const got = Object.fromEntries((g?.causes || []).map((c) => [c.id, c]));
   return ( <>
       <Impact />
       <GlobalImpact />
+      <ImpactStats g={g} />
       <Section title={t("Les 12 causes")} subtitle={t("Tu choisis ta kozz à chaque achat. Les ONG partenaires sont en cours de finalisation.")}>
         <motion.div className="cause-grid" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }} variants={{ show: { transition: { staggerChildren: 0.05 } } }}>
           {CAUSES.map((c) => (
             <motion.div key={c.id} className="card cause-card" variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } }} whileHover={{ y: -5 }}>
-              <small className="cause-cat">{c.cat}</small>
-              <span className="dest-emoji">{c.emoji}</span>
-              <span className="dest-name">{c.name}</span>
-              <small className="muted">{c.unit}</small>
+              <CausePhoto cause={c} className="cause-pic" />
+              <small className="cause-cat">{t(c.cat)}</small>
+              <span className="dest-name">{c.emoji} {t(c.name)}</span>
+              <small className="muted">{t(c.unit)}</small>
+              {got[c.id] && <small className="cause-got">{t("{amount} collectés", { amount: eur(got[c.id].donation) })}</small>}
               {c.signature && <span className="pill">{t("Cause signature")}</span>}
             </motion.div>
           ))}

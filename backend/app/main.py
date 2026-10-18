@@ -95,7 +95,38 @@ def global_impact():
         ),
         key=lambda x: -x["donation"],
     )
-    data = {"total": round(sum(x["donation"] for x in causes), 2), "orders": sum(x["orders"] for x in causes), "causes": causes}
+    total = round(sum(x["donation"] for x in causes), 2)
+    orders = sum(x["orders"] for x in causes)
+    ok = "o.status IN ('paid','provisioned') AND o.created_at >= :s"
+    try:
+        with engine.connect() as c:
+            one = c.execute(
+                text(f"SELECT COUNT(DISTINCT COALESCE(CAST(o.customer_id AS CHAR), o.guest_email)) AS donors, COALESCE(SUM(o.total_ttc),0) AS rev, "
+                     f"MIN(o.created_at) AS first, COUNT(DISTINCT o.billing_country) AS ccount FROM orders o WHERE {ok}"), {"s": since}).mappings().first()
+            months = c.execute(
+                text(f"SELECT DATE_FORMAT(o.created_at,'%Y-%m') AS m, COUNT(*) AS n, SUM(o.donation_amount) AS don FROM orders o WHERE {ok} GROUP BY m ORDER BY m"),
+                {"s": since}).mappings().all()
+            tops = c.execute(
+                text(f"SELECT d.id, d.name, SUM(i.qty) AS n, SUM(i.donation) AS don FROM order_items i JOIN orders o ON o.id=i.order_id "
+                     f"JOIN destinations d ON d.id=i.destination_id WHERE {ok} AND i.kind='esim' GROUP BY d.id, d.name ORDER BY n DESC, d.name LIMIT 6"),
+                {"s": since}).mappings().all()
+            esims = c.execute(text(f"SELECT COALESCE(SUM(i.qty),0) FROM order_items i JOIN orders o ON o.id=i.order_id WHERE {ok} AND i.kind='esim'"), {"s": since}).scalar()
+            dcount = c.execute(text(f"SELECT COUNT(DISTINCT i.destination_id) FROM order_items i JOIN orders o ON o.id=i.order_id WHERE {ok} AND i.destination_id IS NOT NULL"), {"s": since}).scalar()
+            godparents = c.execute(text("SELECT COUNT(*) FROM customers WHERE referred_by IS NOT NULL")).scalar()
+    except SQLAlchemyError:
+        raise HTTPException(503, "Indisponible")
+    for x in causes:
+        x["share"] = round(x["donation"] / total, 4) if total else 0
+    data = {
+        "total": total, "orders": orders, "causes": causes,
+        "donors": int(one["donors"] or 0), "esims": int(esims or 0),
+        "destinations": int(dcount or 0), "referrals": int(godparents or 0),
+        "avg_donation": round(total / orders, 2) if orders else 0,
+        "units_total": round(sum(x["units"] for x in causes), 1),
+        "since": one["first"].strftime("%Y-%m-%d") if one["first"] else None,
+        "months": [{"month": r["m"], "orders": int(r["n"]), "donation": round(float(r["don"]), 2)} for r in months][-12:],
+        "top_destinations": [{"id": r["id"], "name": r["name"], "esims": int(r["n"]), "donation": round(float(r["don"]), 2)} for r in tops],
+    }
     _impact_cache.update(at=time.time(), data=data)
     return data
 

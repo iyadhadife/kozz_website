@@ -464,9 +464,7 @@ def my_orders(cust=Depends(sec.require_customer)):
     return out
 
 
-@router.get("/me/impact")
-def my_impact(cust=Depends(sec.require_customer)):
-    """Passeport d'impact : dons générés par les commandes payées de ce client, par cause."""
+def _impact(cust_id: int) -> dict:
     with engine.connect() as c:
         rows = c.execute(
             text(
@@ -474,7 +472,7 @@ def my_impact(cust=Depends(sec.require_customer)):
                 "FROM orders o JOIN causes ca ON ca.id = o.cause_id WHERE o.customer_id = :c AND o.status IN ('paid','provisioned') "
                 "GROUP BY ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit"
             ),
-            {"c": cust["id"]},
+            {"c": cust_id},
         ).mappings().all()
     causes = sorted(
         ({"id": r["id"], "name": r["name"], "emoji": r["emoji"], "unit": r["unit"], "donation": round(float(r["don"]), 2),
@@ -482,6 +480,24 @@ def my_impact(cust=Depends(sec.require_customer)):
         key=lambda x: -x["donation"],
     )
     return {"total": round(sum(x["donation"] for x in causes), 2), "orders": sum(x["orders"] for x in causes), "causes": causes}
+
+
+@router.get("/me/impact")
+def my_impact(cust=Depends(sec.require_customer)):
+    """Passeport d'impact : dons générés par les commandes payées de ce client, par cause."""
+    return _impact(cust["id"])
+
+
+@router.get("/public/passport/{code}")
+def public_passport(code: str):
+    """Passeport partagé (lien WhatsApp / e-mail) : chiffres d'impact seulement, ni nom, ni e-mail. 404 tant qu'il n'y a aucune commande payée."""
+    code = "".join(ch for ch in code.upper() if ch.isalnum())[:12]
+    with engine.connect() as c:
+        cid = c.execute(text("SELECT id FROM customers WHERE referral_code=:c"), {"c": code}).scalar()
+    data = _impact(cid) if cid else None
+    if not data or not data["orders"]:
+        raise HTTPException(404, "Passeport introuvable")
+    return {"code": code, **data}
 
 
 @router.get("/me/invoices")

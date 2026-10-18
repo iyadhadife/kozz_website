@@ -18,6 +18,7 @@ import Destination from "./pages/Destination.jsx";
 import { CheckoutCanceled, CheckoutSuccess } from "./pages/Checkout.jsx";
 import { Cgv, Confidentialite, MentionsLegales, Remboursement, Retractation } from "./pages/Legal.jsx";
 import Login from "./pages/Login.jsx";
+import Passport from "./pages/Passport.jsx";
 import Compatible from "./pages/Compatible.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog, localizeData, setCurrencyState } from "./data.js";
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="/connexion" element={<Login />} />
           <Route path="/profil" element={<Profile />} />
           <Route path="/destinations" element={<Destinations />} />
+          <Route path="/passeport/:code" element={<Passport />} />
           <Route path="/telephones-compatibles" element={<Compatible />} />
           <Route path="/destinations/:id" element={<Destination />} />
           <Route path="/kozz-monde" element={<div className="page"><MondePage /></div>} />

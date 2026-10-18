@@ -1,3 +1,4 @@
+import CausePhoto from "./CausePhoto.jsx";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
@@ -102,7 +103,7 @@ export default function Cart() {
                     <div className="causes">
                       {CAUSES.map((c) => (
                         <button key={c.id} className={`cause ${c.id === causeId ? "on" : ""}`} onClick={() => setCauseId(c.id)} title={c.cat}>
-                          <span>{c.emoji}</span>
+                          <CausePhoto cause={c} className="cause-thumb" />
                           <small>{c.name}</small>
                         </button>
                       ))}
