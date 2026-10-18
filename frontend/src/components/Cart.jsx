@@ -18,6 +18,9 @@ export default function Cart() {
   const don = cart.reduce((s, i) => s + donation(i.price * i.qty, i.kind), 0);
   const cause = CAUSES.find((c) => c.id === causeId);
   const units = impactUnits(don, cause);
+  const room = Math.max(0, total - 0.5); // Stripe exige au moins 0,50 € à payer
+  const credit = user ? Math.floor(Math.min(user.credit || 0, room) / 1.5) * 1.5 : 0; // crédits de 1,50 €, non fractionnés
+  const net = total - credit;
   const emailOk = (!!user || /^\S+@\S+\.\S+$/.test(email)) && acceptTerms && waive;
 
   const pay = async () => {
@@ -104,14 +107,15 @@ export default function Cart() {
                     <label className="check">
                       <input type="checkbox" checked={waive} onChange={(e) => setWaive(e.target.checked)} />
                       <span>
-                        Je demande l'exécution immédiate de ma commande et je reconnais que, une fois l'eSIM ou la recharge fournie, je perds mon droit de
+                        Je demande l'exécution immédiate de ma commande et je reconnais que, une fois l'eSIM fournie, je perds mon droit de
                         rétractation (<Link to="/retractation" target="_blank" className="accent">en savoir plus</Link>).
                       </span>
                     </label>
 
-                    <div className="totalrow"><span>Total TTC</span><strong>{eur(total)}</strong></div>
+                    {credit > 0 && <div className="totalrow"><span>🎁 Crédit parrainage</span><strong>−{eur(credit)}</strong></div>}
+                    <div className="totalrow"><span>Total TTC</span><strong>{eur(net)}</strong></div>
                     {error && <p className="error" role="alert">{error}</p>}
-                    <button className="btn" disabled={!emailOk || busy} onClick={pay}>{busy ? "Redirection vers le paiement…" : `Payer ${eur(total)}`}</button>
+                    <button className="btn" disabled={!emailOk || busy} onClick={pay}>{busy ? "Redirection vers le paiement…" : `Payer ${eur(net)}`}</button>
                     <p className="muted secure">🔒 Paiement sécurisé par Stripe. Tes données de carte ne transitent jamais par KozzGo.</p>
                   </>
                 )}

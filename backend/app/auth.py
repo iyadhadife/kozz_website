@@ -1,3 +1,8 @@
+import hashlib
+import re
+import hmac
+import logging
+import os
 import secrets
 from decimal import Decimal
 from typing import Optional
@@ -7,11 +12,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from . import notify, referral
 from . import security as sec
 from .db import engine
 from .fulfillment import esims_for_order, fulfilment_state
 from .invoicing import get_pdf
 
+log = logging.getLogger("kozz.auth")
 router = APIRouter(prefix="/api")
 
 EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
@@ -29,6 +36,7 @@ class RegisterIn(BaseModel):
     email: str = Field(max_length=255, pattern=EMAIL)
     password: str = Field(max_length=200)
     first_name: Optional[str] = Field(None, max_length=100)
+    ref: Optional[str] = Field(None, max_length=12)  # code de parrainage (lien ?ref=CODE)
 
 
 class LoginIn(BaseModel):
@@ -39,6 +47,26 @@ class LoginIn(BaseModel):
 class ProfileIn(BaseModel):
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=30)
+    cause_id: Optional[str] = Field(None, max_length=20)
+    notif_sms: Optional[bool] = None
+    marketing_optin: Optional[bool] = None
+
+
+class RelativeIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    phone: Optional[str] = Field(None, max_length=30)
+
+
+def _phone(v: Optional[str]) -> Optional[str]:
+    """Numéro international (+33 6 12 34 56 78 -> +33612345678) ; vide = effacé."""
+    v = (v or "").strip()
+    if not v:
+        return None
+    digits = re.sub(r"[ .\-()]", "", v)
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", digits):
+        raise HTTPException(422, "Numéro invalide : utilise le format international, par exemple +33612345678.")
+    return digits
 
 
 class PasswordIn(BaseModel):
@@ -75,6 +103,16 @@ def _profile(c, cust) -> dict:
         "created_at": cust["created_at"].isoformat() if cust["created_at"] else None,
         "kozz_money": float(cust["kozz_money"]),
         "referral_code": cust["referral_code"],
+        "phone": cust["phone"],
+        "cause_id": cust["cause_id"],
+        "cause_name": c.execute(text("SELECT name FROM causes WHERE id=:i"), {"i": cust["cause_id"]}).scalar() if cust["cause_id"] else None,
+        "notif_sms": bool(cust["notif_sms"]),
+        "marketing_optin": bool(cust["marketing_optin"]),
+        "relatives_count": c.execute(text("SELECT COUNT(*) FROM relatives WHERE customer_id=:i"), {"i": cust["id"]}).scalar(),
+        "orders_count": c.execute(text("SELECT COUNT(*) FROM orders WHERE customer_id=:i AND status IN ('paid','provisioned','refunded')"), {"i": cust["id"]}).scalar(),
+        "credit": float(referral.balance(c, cust["id"])),
+        "referred": bool(cust["referred_by"]),
+        "referral_count": c.execute(text("SELECT COUNT(*) FROM customers WHERE referred_by=:i"), {"i": cust["id"]}).scalar(),
         "status": {
             "key": key,
             "label": label,
@@ -85,29 +123,167 @@ def _profile(c, cust) -> dict:
     }
 
 
-@router.post("/auth/register", status_code=201)
+CODE_TTL_MIN, CODE_MAX_ATTEMPTS, RESEND_AFTER_S, MAX_SENDS = 15, 5, 60, 5
+
+
+class VerifyIn(BaseModel):
+    email: str = Field(max_length=255, pattern=EMAIL)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ResendIn(BaseModel):
+    email: str = Field(max_length=255, pattern=EMAIL)
+
+
+def _code_hash(email: str, code: str) -> str:
+    return hashlib.sha256(f"{email}:{code}".encode()).hexdigest()
+
+
+def _send_code(email: str, code: str) -> None:
+    """Envoie le code par e-mail. Le code n'est jamais écrit dans les logs."""
+    subject = f"{code} est ton code de vérification KozzGo"
+    text_body = (f"Ton code de vérification KozzGo : {code}\n\nIl est valable {CODE_TTL_MIN} minutes. "
+                 "Si tu n'as pas demandé la création d'un compte, ignore ce message : rien ne sera créé.")
+    html_body = (f'<p>Ton code de vérification KozzGo :</p><p style="font-size:28px;letter-spacing:6px;font-weight:700">{code}</p>'
+                 f'<p>Il est valable {CODE_TTL_MIN} minutes.</p><p style="color:#666">Si tu n\'as pas demandé la création d\'un compte, ignore ce message : rien ne sera créé.</p>')
+    try:
+        notify.send_email(email, subject, text_body, html_body)
+    except notify.NotConfigured:
+        raise HTTPException(503, "L'envoi d'e-mails n'est pas encore configuré : impossible de vérifier ton adresse.")
+    except Exception as e:  # noqa: BLE001
+        log.error("Envoi du code de vérification échoué: %s", type(e).__name__)
+        raise HTTPException(502, "Impossible d'envoyer l'e-mail de vérification, réessaie dans un instant.")
+
+
+def verification_enabled() -> bool:
+    """EMAIL_VERIFICATION_ENABLED=false dans .env : l'inscription crée le compte directement, sans code."""
+    return os.getenv("EMAIL_VERIFICATION_ENABLED", "true").strip().lower() not in ("false", "0", "no", "off")
+
+
+def _create_account(c, email: str, pw_hash: str, first_name, ref, request: Request, response: Response, verified: bool) -> dict:
+    for _ in range(5):  # code de parrainage unique
+        ref_code = "".join(secrets.choice(_REF_ALPHABET) for _ in range(8))
+        try:
+            cid = c.execute(
+                text("INSERT INTO customers (email, password_hash, first_name, referral_code, email_verified_at) "
+                     "VALUES (:e, :p, :f, :r, " + ("UTC_TIMESTAMP()" if verified else "NULL") + ")"),
+                {"e": email, "p": pw_hash, "f": first_name, "r": ref_code},
+            ).lastrowid
+            break
+        except IntegrityError as e:
+            if "email" in str(e.orig).lower():
+                raise HTTPException(409, "Un compte existe déjà avec cet e-mail.")
+    else:
+        raise HTTPException(500, "Création du compte impossible, réessaie.")
+    referral.link_referrer(c, cid, ref)
+    sec.start_session(c, cid, request, response)
+    cust = c.execute(text("SELECT * FROM customers WHERE id = :i"), {"i": cid}).mappings().first()
+    return _profile(c, cust)
+
+
+def _new_code() -> str:
+    return f"{secrets.randbelow(10 ** 6):06d}"
+
+
+@router.post("/auth/register", status_code=202)
 def register(body: RegisterIn, request: Request, response: Response):
+    """Étape 1 : on vérifie l'e-mail et le mot de passe, on envoie un code. Le compte n'est PAS encore créé.
+    Si EMAIL_VERIFICATION_ENABLED=false : le compte est créé tout de suite (statut 201, e-mail non vérifié)."""
     email = body.email.strip().lower()
+    ip_key = f"reg:{sec.client_ip(request)}"
+    sec.rate_limit(ip_key, limit=10, window=900)
+    sec.record_failure(ip_key)
     sec.validate_password(body.password, email)
     pw_hash = sec.hash_password(body.password)
-
+    if not verification_enabled():
+        with engine.begin() as c:
+            if c.execute(text("SELECT 1 FROM customers WHERE email=:e"), {"e": email}).first():
+                raise HTTPException(409, "Un compte existe déjà avec cet e-mail.")
+            response.status_code = 201
+            return _create_account(c, email, pw_hash, _clean(body.first_name), (body.ref or "").strip().upper()[:12] or None, request, response, verified=False)
+    code = _new_code()
     with engine.begin() as c:
-        for _ in range(5):  # code de parrainage unique
-            code = "".join(secrets.choice(_REF_ALPHABET) for _ in range(8))
-            try:
-                cid = c.execute(
-                    text("INSERT INTO customers (email, password_hash, first_name, referral_code) VALUES (:e, :p, :f, :r)"),
-                    {"e": email, "p": pw_hash, "f": _clean(body.first_name), "r": code},
-                ).lastrowid
-                break
-            except IntegrityError as e:
-                if "email" in str(e.orig).lower():
-                    raise HTTPException(409, "Un compte existe déjà avec cet e-mail.")
+        if c.execute(text("SELECT 1 FROM customers WHERE email=:e"), {"e": email}).first():
+            raise HTTPException(409, "Un compte existe déjà avec cet e-mail.")
+        old = c.execute(text("SELECT TIMESTAMPDIFF(SECOND, last_sent_at, UTC_TIMESTAMP()) AS ago FROM pending_registrations WHERE email=:e"), {"e": email}).first()
+        if old is not None and old[0] < RESEND_AFTER_S:
+            raise HTTPException(429, f"Un code vient d'être envoyé. Réessaie dans {RESEND_AFTER_S - old[0]} secondes.")
+        c.execute(
+            text(
+                "REPLACE INTO pending_registrations (email, password_hash, first_name, ref, code_hash, expires_at, last_sent_at) "
+                "VALUES (:e, :p, :f, :r, :h, DATE_ADD(UTC_TIMESTAMP(), INTERVAL :m MINUTE), UTC_TIMESTAMP())"
+            ),
+            {"e": email, "p": pw_hash, "f": _clean(body.first_name), "r": (body.ref or "").strip().upper()[:12] or None,
+             "h": _code_hash(email, code), "m": CODE_TTL_MIN},
+        )
+    _send_code(email, code)
+    return {"pending": True, "email": email, "expires_in_minutes": CODE_TTL_MIN, "resend_in": RESEND_AFTER_S}
+
+
+@router.post("/auth/register/resend", status_code=202)
+def register_resend(body: ResendIn, request: Request):
+    email = body.email.strip().lower()
+    ip_key = f"reg:{sec.client_ip(request)}"
+    sec.rate_limit(ip_key, limit=10, window=900)
+    sec.record_failure(ip_key)
+    code = _new_code()
+    with engine.begin() as c:
+        row = c.execute(
+            text("SELECT sends, TIMESTAMPDIFF(SECOND, last_sent_at, UTC_TIMESTAMP()) AS ago FROM pending_registrations WHERE email=:e FOR UPDATE"), {"e": email}
+        ).first()
+        if row is None:
+            raise HTTPException(404, "Aucune inscription en attente pour cet e-mail. Recommence l'inscription.")
+        if row[1] < RESEND_AFTER_S:
+            raise HTTPException(429, f"Réessaie dans {RESEND_AFTER_S - row[1]} secondes.")
+        if row[0] >= MAX_SENDS:
+            raise HTTPException(429, "Trop de codes envoyés. Recommence l'inscription dans un moment.")
+        c.execute(
+            text("UPDATE pending_registrations SET code_hash=:h, attempts=0, sends=sends+1, expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL :m MINUTE), last_sent_at=UTC_TIMESTAMP() WHERE email=:e"),
+            {"h": _code_hash(email, code), "m": CODE_TTL_MIN, "e": email},
+        )
+    _send_code(email, code)
+    return {"pending": True, "resend_in": RESEND_AFTER_S}
+
+
+def _fail_attempt(email: str, attempts: int) -> int:
+    """Compte un essai raté dans sa propre transaction (la transaction principale est annulée par l'exception HTTP)."""
+    with engine.begin() as c:
+        if attempts >= CODE_MAX_ATTEMPTS:  # trop d'essais : il faut redemander un code
+            c.execute(text("DELETE FROM pending_registrations WHERE email=:e"), {"e": email})
         else:
-            raise HTTPException(500, "Création du compte impossible, réessaie.")
-        sec.start_session(c, cid, request, response)
-        cust = c.execute(text("SELECT * FROM customers WHERE id = :i"), {"i": cid}).mappings().first()
-        return _profile(c, cust)
+            c.execute(text("UPDATE pending_registrations SET attempts=:a WHERE email=:e"), {"a": attempts, "e": email})
+    return CODE_MAX_ATTEMPTS - attempts
+
+
+@router.post("/auth/register/verify", status_code=201)
+def register_verify(body: VerifyIn, request: Request, response: Response):
+    """Étape 2 : le bon code crée le compte et ouvre la session."""
+    email = body.email.strip().lower()
+    ip_key = f"verify:{sec.client_ip(request)}"
+    sec.rate_limit(ip_key, limit=20, window=900)
+    bad = None
+    with engine.begin() as c:
+        p = c.execute(text("SELECT *, expires_at < UTC_TIMESTAMP() AS expired FROM pending_registrations WHERE email=:e FOR UPDATE"), {"e": email}).mappings().first()
+        if p is None:
+            raise HTTPException(410, "Code expiré ou inscription introuvable. Recommence l'inscription.")
+        if p["expired"]:
+            c.execute(text("DELETE FROM pending_registrations WHERE email=:e"), {"e": email})
+            gone = True
+        elif not hmac.compare_digest(p["code_hash"], _code_hash(email, body.code)):
+            sec.record_failure(ip_key)
+            bad = p["attempts"] + 1
+            gone = False
+        else:
+            gone = False
+            prof = _create_account(c, email, p["password_hash"], p["first_name"], p["ref"], request, response, verified=True)
+            c.execute(text("DELETE FROM pending_registrations WHERE email=:e"), {"e": email})
+            return prof
+    if gone:
+        raise HTTPException(410, "Code expiré. Recommence l'inscription.")
+    left = _fail_attempt(email, bad)
+    if left <= 0:
+        raise HTTPException(410, "Trop d'essais. Recommence l'inscription.")
+    raise HTTPException(400, f"Code incorrect. Il te reste {left} essai(s).")
 
 
 @router.post("/auth/login")
@@ -146,13 +322,60 @@ def me(cust=Depends(sec.require_customer)):
 
 @router.patch("/me")
 def update_me(body: ProfileIn, cust=Depends(sec.require_customer)):
+    sent = body.model_fields_set  # on ne modifie que ce que le navigateur a envoyé
+    sets, params = [], {"i": cust["id"]}
+    if "first_name" in sent:
+        sets.append("first_name = :f")
+        params["f"] = _clean(body.first_name)
+    if "last_name" in sent:
+        sets.append("last_name = :l")
+        params["l"] = _clean(body.last_name)
+    if "phone" in sent:
+        sets.append("phone = :ph")
+        params["ph"] = _phone(body.phone)
+    if "notif_sms" in sent and body.notif_sms is not None:
+        sets.append("notif_sms = :ns")
+        params["ns"] = body.notif_sms
+    if "marketing_optin" in sent and body.marketing_optin is not None:
+        sets.append("marketing_optin = :mo, marketing_optin_at = " + ("UTC_TIMESTAMP()" if body.marketing_optin else "NULL"))
+        params["mo"] = body.marketing_optin
     with engine.begin() as c:
-        c.execute(
-            text("UPDATE customers SET first_name = :f, last_name = :l WHERE id = :i"),
-            {"f": _clean(body.first_name), "l": _clean(body.last_name), "i": cust["id"]},
-        )
+        if "cause_id" in sent:
+            if body.cause_id and not c.execute(text("SELECT 1 FROM causes WHERE id=:i"), {"i": body.cause_id}).first():
+                raise HTTPException(422, "Cause inconnue")
+            sets.append("cause_id = :ca")
+            params["ca"] = body.cause_id or None
+        if sets:
+            c.execute(text("UPDATE customers SET " + ", ".join(sets) + " WHERE id = :i"), params)
         fresh = c.execute(text("SELECT * FROM customers WHERE id = :i"), {"i": cust["id"]}).mappings().first()
         return _profile(c, fresh)
+
+
+@router.get("/me/relatives")
+def list_relatives(cust=Depends(sec.require_customer)):
+    with engine.connect() as c:
+        rows = c.execute(text("SELECT id, name, phone FROM relatives WHERE customer_id=:c ORDER BY id"), {"c": cust["id"]}).mappings().all()
+    return [{"id": r["id"], "name": r["name"], "phone": r["phone"]} for r in rows]
+
+
+@router.post("/me/relatives", status_code=201)
+def add_relative(body: RelativeIn, cust=Depends(sec.require_customer)):
+    name, phone = _clean(body.name), _phone(body.phone)
+    if not name:
+        raise HTTPException(422, "Le prénom est requis.")
+    with engine.begin() as c:
+        if c.execute(text("SELECT COUNT(*) FROM relatives WHERE customer_id=:c"), {"c": cust["id"]}).scalar() >= 20:
+            raise HTTPException(422, "20 proches maximum.")
+        rid = c.execute(text("INSERT INTO relatives (customer_id, name, phone) VALUES (:c,:n,:p)"), {"c": cust["id"], "n": name, "p": phone}).lastrowid
+    return {"id": rid, "name": name, "phone": phone}
+
+
+@router.delete("/me/relatives/{rid}", status_code=204)
+def delete_relative(rid: int, cust=Depends(sec.require_customer)):
+    with engine.begin() as c:
+        c.execute(text("DELETE FROM relatives WHERE id=:i AND customer_id=:c"), {"i": rid, "c": cust["id"]})
+
+
 
 
 @router.post("/me/password", status_code=204)
@@ -222,6 +445,26 @@ def my_orders(cust=Depends(sec.require_customer)):
                 }
             )
     return out
+
+
+@router.get("/me/impact")
+def my_impact(cust=Depends(sec.require_customer)):
+    """Passeport d'impact : dons générés par les commandes payées de ce client, par cause."""
+    with engine.connect() as c:
+        rows = c.execute(
+            text(
+                "SELECT ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit, SUM(o.donation_amount) AS don, COUNT(*) AS n "
+                "FROM orders o JOIN causes ca ON ca.id = o.cause_id WHERE o.customer_id = :c AND o.status IN ('paid','provisioned') "
+                "GROUP BY ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit"
+            ),
+            {"c": cust["id"]},
+        ).mappings().all()
+    causes = sorted(
+        ({"id": r["id"], "name": r["name"], "emoji": r["emoji"], "unit": r["unit"], "donation": round(float(r["don"]), 2),
+          "units": float(r["don"]) / float(r["cost_per_unit"]), "orders": r["n"]} for r in rows),
+        key=lambda x: -x["donation"],
+    )
+    return {"total": round(sum(x["donation"] for x in causes), 2), "orders": sum(x["orders"] for x in causes), "causes": causes}
 
 
 @router.get("/me/invoices")

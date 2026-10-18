@@ -197,9 +197,10 @@ export default function Profile() {
   if (user === undefined) return <div className="page"><p className="muted" style={{ padding: "6rem 1.5rem" }}>Chargement…</p></div>;
   if (!user) return <Navigate to="/connexion?next=/profil" replace />;
 
+  const link = `${location.origin}/?ref=${user.referral_code}`;
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(user.referral_code);
+      await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {}
@@ -222,11 +223,17 @@ export default function Profile() {
           <span className="lbl">KozzMoney</span>
           <p className="big">{eur(user.kozz_money)}</p>
           <p className="muted">Utilisable sur ton prochain achat, ou convertible en don.</p>
-          <span className="lbl" style={{ marginTop: "1rem" }}>Code de parrainage</span>
-          <button className="code" onClick={copy} aria-label="Copier le code de parrainage">
-            {user.referral_code} <small>{copied ? "copié ✓" : "copier"}</small>
+          <span className="lbl" style={{ marginTop: "1rem" }}>Crédit de parrainage</span>
+          <p className="big">{eur(user.credit || 0)}</p>
+          <p className="muted">Déduit automatiquement de ta prochaine commande{user.referred ? " (ton cadeau de bienvenue en fait partie)" : ""}.</p>
+          <span className="lbl" style={{ marginTop: "1rem" }}>Ton lien de parrainage</span>
+          <button className="code" onClick={copy} aria-label="Copier le lien de parrainage">
+            {user.referral_code} <small>{copied ? "lien copié ✓" : "copier le lien"}</small>
           </button>
-          <p className="muted">Parrain : 3 € de KozzMoney. Filleul : 3 € de remise.</p>
+          <p className="muted">
+            Ton filleul reçoit 1,50 € de remise dès son inscription. Tu reçois 1,50 € quand il paie sa première commande.
+            {user.referral_count ? ` ${user.referral_count} filleul${user.referral_count > 1 ? "s" : ""} pour l'instant.` : ""}
+          </p>
         </div>
         <Identity user={user} setUser={setUser} />
         <Security />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Hero from "../components/Hero.jsx";
@@ -7,8 +7,10 @@ import Assistant from "../components/Assistant.jsx";
 import DestCard from "../components/DestCard.jsx";
 import HowItWorks from "../components/HowItWorks.jsx";
 import Faq from "../components/Faq.jsx";
-import { CAUSES, DESTINATIONS, MONDE, POPULAR, ZONES, eur, FAQ } from "../data.js";
+import { CAUSES, DESTINATIONS, MONDE, POPULAR, ZONES, eur, fmtNum, FAQ } from "../data.js";
 import { useStore } from "../store.jsx";
+import { Counter } from "../components/Impact.jsx";
+import { api } from "../api.js";
 
 const TABS = [
   ["pop", "Populaires"],
@@ -16,7 +18,7 @@ const TABS = [
   ["reg", "Régionales"],
   ["world", "Mondiales"],
 ];
-const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.03 } } };
 
 function Tabs() {
   const { add } = useStore();
@@ -36,7 +38,7 @@ function Tabs() {
 
       <motion.div key={tab} className="dest-grid" initial="hidden" animate="show" variants={stagger}>
         {tab === "pop" && popular.map((d) => <DestCard key={d.id} d={d} />)}
-        {tab === "local" && DESTINATIONS.map((d) => <DestCard key={d.id} d={d} />)}
+        {tab === "local" && DESTINATIONS.slice(0, 24).map((d) => <DestCard key={d.id} d={d} />)}
         {tab === "reg" &&
           ZONES.map((z) => (
             <motion.div key={z} variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } }} whileHover={{ y: -6 }}>
@@ -63,6 +65,39 @@ function Tabs() {
   );
 }
 
+// Récapitulatif global : tous les dons générés par les achats KozzGo (chiffres du serveur, pas du navigateur)
+function GlobalImpact() {
+  const [g, setG] = useState(null);
+  useEffect(() => {
+    api("/impact/global").then(setG).catch(() => setG(null));
+  }, []);
+  if (!g) return null;
+  return (
+    <Section id="dons" title="Ensemble, on a déjà fait avancer des causes" subtitle="Chaque achat finance 10 % du prix HT d'une cause choisie par le client. Voici le total, toutes commandes confondues.">
+      <div className="card total">
+        <span className="lbl">Dons générés avec KozzGo</span>
+        <strong className="big"><Counter value={g.total} format={eur} /></strong>
+        <span className="muted">{g.orders} commande{g.orders > 1 ? "s" : ""} solidaire{g.orders > 1 ? "s" : ""}</span>
+      </div>
+      {g.causes.length > 0 ? (
+        <div className="tiers">
+          {g.causes.map((c) => (
+            <motion.div key={c.id} className="card tier" initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}>
+              <span className="tier-icon">{c.emoji}</span>
+              <p className="big"><Counter value={c.units} format={fmtNum} /></p>
+              <p className="muted">{c.unit}</p>
+              <small className="muted">{eur(c.donation)} · {c.name}</small>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">Les premiers dons apparaîtront ici dès les premières commandes.</p>
+      )}
+      <p className="muted note">Les unités d'impact sont indicatives ; le reversement aux associations partenaires est en cours de formalisation (conventions).</p>
+    </Section>
+  );
+}
+
 function ImpactTeaser() {
   return (
     <Section id="causes" title="Ta data voyage. Ta kozz avance." subtitle="12 causes, 6 catégories. Tu choisis à chaque achat.">
@@ -83,6 +118,7 @@ export default function Home() {
       <Tabs />
       <Assistant />
       <HowItWorks />
+      <GlobalImpact />
       <ImpactTeaser />
       <Section id="faq" title="Questions fréquentes">
         <Faq items={FAQ.slice(0, 5)} />

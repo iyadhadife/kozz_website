@@ -153,6 +153,8 @@ def issue_invoice(order_id: int) -> str | None:
         if order["customer_id"]:
             account = c.execute(text("SELECT email, first_name, last_name FROM customers WHERE id=:i"), {"i": order["customer_id"]}).mappings().first()
         items = [dict(r) for r in c.execute(text("SELECT label, qty, unit_price FROM order_items WHERE order_id=:o ORDER BY id"), {"o": order_id}).mappings()]
+        if Decimal(order["discount_amount"] or 0) > 0:
+            items.append({"label": "Remise parrainage", "qty": 1, "unit_price": -Decimal(order["discount_amount"])})
         rate = legal.vat_rate()
         lines, total_ht, total_vat, total_ttc = compute_lines(items, rate)
         if total_ttc != Decimal(order["total_ttc"]):

@@ -59,7 +59,6 @@ export default function Navbar() {
           <AnimatePresence>{mega && <Mega onClose={() => setMega(false)} />}</AnimatePresence>
         </div>
         <NavLink to="/kozz-monde">Kozz Monde</NavLink>
-        <NavLink to="/recharge">Recharge un proche</NavLink>
         <NavLink to="/comment-ca-marche">Comment ça marche</NavLink>
         <NavLink to="/impact">Impact</NavLink>
         <NavLink to="/aide">Aide</NavLink>
@@ -87,7 +86,6 @@ export default function Navbar() {
           <motion.nav className="mobile-menu" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
             <Link to="/destinations">Destinations</Link>
             <Link to="/kozz-monde">Kozz Monde</Link>
-            <Link to="/recharge">Recharge un proche</Link>
             <Link to="/comment-ca-marche">Comment ça marche</Link>
             <Link to="/impact">Impact</Link>
             <Link to="/aide">Aide</Link>

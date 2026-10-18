@@ -46,18 +46,6 @@ export const CAUSES = [
   { id: "energie", cat: "Humanitaire", name: "Électricité solidaire", unit: "h d'électricité", cost: 0.25, emoji: "💡" },
 ];
 
-export const CORRIDORS = [
-  { id: "ma", country: "Maroc", operators: ["Maroc Telecom (IAM)", "Inwi", "Orange"], soon: false },
-  { id: "sn", country: "Sénégal", operators: ["Orange (Sonatel)", "Free", "Expresso"], soon: false },
-  { id: "ci", country: "Côte d'Ivoire", operators: ["MTN", "Moov", "Orange"], soon: false },
-  { id: "ml", country: "Mali", operators: ["Orange Mali", "Moov", "Malitel"], soon: false },
-  { id: "cm", country: "Cameroun", operators: ["MTN", "Orange", "Camtel"], soon: false },
-  { id: "tn", country: "Tunisie", operators: ["Ooredoo", "Orange", "Tunisie Telecom"], soon: false },
-  { id: "lb", country: "Liban", operators: ["touch", "alfa"], soon: false },
-  { id: "km", country: "Comores", operators: ["Comores Telecom", "HURI"], soon: true },
-  { id: "dz", country: "Algérie", operators: ["Mobilis", "Djezzy", "Ooredoo"], soon: true },
-];
-export const TOPUP_AMOUNTS = [5, 10, 20, 50];
 
 // --- Calcul du don (10 % de la marge brute HT) ---
 // Hypothèse de marge tant que le Cost Engine n'est pas branché : à remplacer par le vrai coût wholesale.
@@ -88,8 +76,6 @@ export const FAQ = [
   { cat: "Achat", q: "Quand démarre la durée de validité ?", a: "À ta première connexion sur place, pas à l'achat. Tu peux donc acheter ton eSIM à l'avance." },
   { cat: "Achat", q: "Que signifie « illimité » ?", a: "Data sans compter, avec un fair use affiché clairement avant l'achat (plein débit jusqu'à un seuil par jour, puis débit réduit). Rien n'est caché." },
   { cat: "Achat", q: "Puis-je acheter plusieurs eSIM ?", a: "Oui : plusieurs appareils (un eSIM par appareil) ou plusieurs destinations dans la même commande, grâce au panier." },
-  { cat: "Recharges", q: "Comment fonctionne la recharge pour un proche ?", a: "Tu choisis le pays, l'opérateur, le numéro et le montant. La SIM locale de ton proche est créditée, sans rien installer, et il reçoit un SMS de confirmation." },
-  { cat: "Recharges", q: "Quels pays sont disponibles ?", a: "Maroc, Sénégal, Côte d'Ivoire, Mali, Cameroun, Tunisie et Liban. Les Comores et l'Algérie arrivent bientôt." },
   { cat: "Impact", q: "Comment fonctionne le don ?", a: "10 % de la marge de chaque achat est reversé à la cause de ton choix. Ton impact s'affiche en unités concrètes dans ton Passeport d'impact." },
   { cat: "Impact", q: "Le don change-t-il le prix ?", a: "Non. Le don est pris sur notre marge, tu ne paies pas plus cher." },
 ];
@@ -104,7 +90,6 @@ export function hydrateCatalog(c) {
   replace(DESTINATIONS, c.destinations);
   replace(ZONES, [...new Set(c.destinations.map((d) => d.zone))]);
   replace(CAUSES, c.causes);
-  replace(CORRIDORS, c.corridors);
   replace(MONDE, c.monde);
   Object.assign(MARGIN_RATE, c.margin_rates);
 }

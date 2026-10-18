@@ -41,6 +41,44 @@ def connect():
     return {"message": "Connecté au backend Python 🐍"}
 
 
+_impact_cache: dict = {"at": 0.0, "data": None}
+
+
+@app.get("/api/impact/global")
+def global_impact():
+    """Dons générés par l'ensemble des commandes payées (hors remboursées). Agrégats uniquement. Mis en cache 60 s.
+    IMPACT_COUNT_FROM=AAAA-MM-JJ (facultatif) ignore les commandes plus anciennes (par ex. les essais avant l'ouverture)."""
+    import os
+    import time
+
+    if _impact_cache["data"] and time.time() - _impact_cache["at"] < 60:
+        return _impact_cache["data"]
+    since = os.getenv("IMPACT_COUNT_FROM", "").strip() or "1970-01-01"
+    try:
+        with engine.connect() as c:
+            rows = c.execute(
+                text(
+                    "SELECT ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit, SUM(o.donation_amount) AS don, COUNT(*) AS n "
+                    "FROM orders o JOIN causes ca ON ca.id = o.cause_id "
+                    "WHERE o.status IN ('paid','provisioned') AND o.created_at >= :s GROUP BY ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit"
+                ),
+                {"s": since},
+            ).mappings().all()
+    except SQLAlchemyError:
+        raise HTTPException(503, "Indisponible")
+    causes = sorted(
+        (
+            {"id": r["id"], "name": r["name"], "emoji": r["emoji"], "unit": r["unit"], "donation": round(float(r["don"]), 2),
+             "units": float(r["don"]) / float(r["cost_per_unit"]), "orders": r["n"]}
+            for r in rows
+        ),
+        key=lambda x: -x["donation"],
+    )
+    data = {"total": round(sum(x["donation"] for x in causes), 2), "orders": sum(x["orders"] for x in causes), "causes": causes}
+    _impact_cache.update(at=time.time(), data=data)
+    return data
+
+
 @app.get("/api/catalog")
 def catalog():
     """Tout le catalogue en un appel : usages, destinations (+ prix par usage), causes, corridors, Kozz Monde."""

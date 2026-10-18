@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Section from "../components/Section.jsx";
-import Recharge from "../components/Recharge.jsx";
 import Impact from "../components/Impact.jsx";
 import HowItWorks from "../components/HowItWorks.jsx";
 import Faq from "../components/Faq.jsx";
 import { CAUSES, FAQ, MONDE, eur } from "../data.js";
 import { useStore } from "../store.jsx";
 
-export const RechargePage = () => <Recharge />;
 export const HowPage = () => <HowItWorks />;
 
 export function ImpactPage() {

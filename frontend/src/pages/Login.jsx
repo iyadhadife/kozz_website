@@ -6,12 +6,14 @@ import { useStore } from "../store.jsx";
 const MIN = 10;
 
 export default function Login() {
-  const { user, login, register } = useStore();
+  const { user, login, register, verifyRegister, resendRegister } = useStore();
   const nav = useNavigate();
   const [params] = useSearchParams();
   const next = params.get("next") || "/profil";
 
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState(params.get("mode") === "register" ? "register" : "login"); // login | register
+  let ref = "";
+  try { ref = localStorage.getItem("kozz_ref") || ""; } catch {}
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,17 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [pending, setPending] = useState(null); // e-mail en attente de vérification
+  const [code, setCode] = useState("");
+  const [wait, setWait] = useState(0); // secondes avant de pouvoir redemander un code
+  const [sentInfo, setSentInfo] = useState("");
+
   useEffect(() => setError(""), [mode]);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
 
   if (user) return <Navigate to={next} replace />;
 
@@ -35,8 +47,18 @@ export default function Login() {
     setBusy(true);
     setError("");
     try {
-      if (isRegister) await register(email, password, firstName);
-      else await login(email, password);
+      if (isRegister) {
+        const r = await register(email, password, firstName);
+        if (r?.id) {
+          nav(next, { replace: true });
+          return;
+        }
+        setPending(email.trim().toLowerCase());
+        setWait(r?.resend_in ?? 60);
+        setCode("");
+        return;
+      }
+      await login(email, password);
       nav(next, { replace: true });
     } catch (err) {
       setError(err.message);
@@ -45,9 +67,78 @@ export default function Login() {
     }
   }
 
+  async function verify(e) {
+    e.preventDefault();
+    if (code.length !== 6 || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await verifyRegister(pending, code);
+      nav(next, { replace: true });
+    } catch (err) {
+      setError(err.message);
+      if (err.status === 410) setPending(null); // code expiré ou trop d'essais : on recommence
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    if (wait > 0 || busy) return;
+    setError("");
+    setSentInfo("");
+    try {
+      const r = await resendRegister(pending);
+      setWait(r?.resend_in ?? 60);
+      setSentInfo("Nouveau code envoyé.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (pending) {
+    return (
+      <div className="page auth">
+        <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
+          <img src="/logo.jpg" alt="KozzGo" className="auth-logo" />
+          <h2>Vérifie ton e-mail</h2>
+          <p className="muted">Nous avons envoyé un code à 6 chiffres à <strong>{pending}</strong>. Il est valable 15 minutes. Pense à regarder tes indésirables.</p>
+          <form className="form" onSubmit={verify} noValidate>
+            <label>
+              Code de vérification
+              <input
+                className="code-input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                aria-label="Code à 6 chiffres"
+              />
+            </label>
+            {error && <p className="error" role="alert">{error}</p>}
+            {sentInfo && !error && <p className="muted" role="status">{sentInfo}</p>}
+            <button className="btn" disabled={code.length !== 6 || busy}>{busy ? "…" : "Valider et créer mon compte"}</button>
+          </form>
+          <p className="muted note">
+            Pas reçu ?{" "}
+            <button type="button" className="linklike" onClick={resend} disabled={wait > 0}>
+              {wait > 0 ? `Renvoyer le code dans ${wait} s` : "Renvoyer le code"}
+            </button>
+            {" · "}
+            <button type="button" className="linklike" onClick={() => { setPending(null); setError(""); }}>Changer d'e-mail</button>
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="page auth">
       <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
+        {ref && isRegister && <p className="ref-banner" role="note">🎁 Code de parrainage <strong>{ref}</strong> : 1,50 € offerts sur ta prochaine commande après ton inscription.</p>}
         <img src="/logo.jpg" alt="KozzGo" className="auth-logo" />
         <div className="seg">
           {[["login", "Connexion"], ["register", "Créer un compte"]].map(([k, l]) => (
@@ -105,7 +196,7 @@ export default function Login() {
 
           {error && <p className="error" role="alert">{error}</p>}
           <button className="btn" disabled={!valid || busy}>
-            {busy ? "…" : isRegister ? "Créer mon compte" : "Me connecter"}
+            {busy ? "…" : isRegister ? "Recevoir mon code" : "Me connecter"}
           </button>
         </form>
 

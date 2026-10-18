@@ -29,7 +29,7 @@ export default function Destinations() {
           </button>
         ))}
       </div>
-      <motion.div key={zone + q} className="dest-grid" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.04 } } }}>
+      <motion.div key={zone + q} className="dest-grid" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.008 } } }}>
         {list.map((d) => <DestCard key={d.id} d={d} />)}
       </motion.div>
       {list.length === 0 && <p className="muted">Oh ! On n'a rien trouvé. Essaie un autre pays.</p>}

@@ -13,7 +13,21 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from .db import engine
-from .providers.yesim import Yesim, YesimError, get_client
+import os
+
+from .providers import firsty, yesim
+from .providers.firsty import FirstyError
+from .providers.yesim import YesimError
+
+ProviderError = (YesimError, FirstyError)
+
+
+def get_client():
+    """ESIM_PROVIDER=firsty|yesim ; par défaut Firsty s'il est configuré, sinon Yesim."""
+    choice = os.getenv("ESIM_PROVIDER", "").strip().lower()
+    if choice == "yesim":
+        return yesim.get_client()
+    return firsty.get_client() or (None if choice == "firsty" else yesim.get_client())
 
 log = logging.getLogger("kozz.fulfillment")
 _locks_guard = threading.Lock()
@@ -35,7 +49,7 @@ def _store_success(c, row_id: int, esim: dict) -> None:
     )
 
 
-def _provision_one(client: Yesim, row: dict, plan_id: str) -> None:
+def _provision_one(client, row: dict, plan_id: str) -> None:
     key = row["provider_payment_id"]
     already_tried = row["status"] != "pending" or row["error"] is not None or row["tried"]
     try:
@@ -53,10 +67,18 @@ def _provision_one(client: Yesim, row: dict, plan_id: str) -> None:
         esim = client.new_esim(plan_id=plan_id, payment_id=key)
         with engine.begin() as c:
             _store_success(c, row["id"], esim)
-    except YesimError as e:
+    except ProviderError as e:
         log.error("Livraison eSIM %s échouée: %s", key, e)
         with engine.begin() as c:
             c.execute(text("UPDATE esims SET status='failed', error=:e WHERE id=:id"), {"e": str(e)[:250], "id": row["id"]})
+
+
+def _sandbox_plan() -> str | None:
+    """Test uniquement : sur le sandbox Firsty, un forfait non associé reçoit un forfait de test (3 Go Global).
+    En production (autre URL), on ne devine jamais un forfait : la livraison s'arrête et on le voit dans les logs."""
+    if "test." in os.getenv("FIRSTY_BASE_URL", "") and (os.getenv("ESIM_PROVIDER", "").lower() != "yesim"):
+        return os.getenv("FIRSTY_SANDBOX_PLAN", "CG3M75T0HXDGLN")
+    return None
 
 
 def fulfill_order(order_id: int) -> str:
@@ -83,12 +105,13 @@ def fulfill_order(order_id: int) -> str:
         if not esim_items:
             return "skipped"
         if client is None:
-            log.error("Commande %s payée mais YESIM_API_TOKEN absent : eSIM non livrées", order_id)
+            log.error("Commande %s payée mais aucun fournisseur d'eSIM configuré (FIRSTY_* ou YESIM_API_TOKEN) : eSIM non livrées", order_id)
             return "failed"
 
         for it in esim_items:
-            if not it["provider_plan_id"]:
-                log.error("Commande %s : aucun forfait Yesim associé à %s/%s (lancer sync_yesim)", order_id, it["destination_id"], it["tier_key"])
+            plan_ref = it["provider_plan_id"] or _sandbox_plan()
+            if not plan_ref:
+                log.error("Commande %s : aucun forfait fournisseur associé à %s/%s", order_id, it["destination_id"], it["tier_key"])
                 continue
             for seq in range(it["qty"]):
                 key = f"kozz-{it['id']}-{seq}"
@@ -105,7 +128,7 @@ def fulfill_order(order_id: int) -> str:
                 if row["status"] == "provisioned":
                     continue
                 row["tried"] = not fresh
-                _provision_one(client, row, it["provider_plan_id"])
+                _provision_one(client, row, plan_ref)
 
         with engine.begin() as c:
             states = [r[0] for r in c.execute(text("SELECT status FROM esims WHERE order_id=:o"), {"o": order_id})]

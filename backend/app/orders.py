@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from . import legal
+from . import legal, referral
 from .db import engine
 from .pricing import donation
 
@@ -77,6 +77,8 @@ def _price_item(c, it: ItemIn):
 def create_order(order: OrderIn, customer: Optional[dict] = None):
     if not customer and not order.email:
         raise HTTPException(422, "E-mail requis")
+    if any(it.kind == "topup" for it in order.items):
+        raise HTTPException(422, "Les recharges pour un proche ne sont plus proposées.")
     if not (order.accept_terms and order.waive_withdrawal):
         raise HTTPException(422, "Tu dois accepter les conditions générales et demander l'exécution immédiate pour continuer.")
     with engine.begin() as c:  # une seule transaction : tout ou rien
@@ -93,16 +95,26 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
             total += line_total
             don_total += don
 
+        # Crédit de parrainage (clients connectés seulement) : calculé ici, jamais envoyé par le navigateur.
+        gross = total
+        discount, credit_ids = referral.reserve(c, customer["id"], gross) if customer else (Decimal(0), [])
+        total = gross - discount
+        if discount:  # le don suit le montant réellement encaissé
+            ratio = total / gross
+            don_total = don_total * ratio
+            lines = [(it, label, unit_price, don * ratio) for it, label, unit_price, don in lines]
+
         # Connecté : commande rattachée au compte. Invité : on garde seulement l'e-mail, jamais de compte implicite.
         order_id = c.execute(
-            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, donation_amount, terms_accepted_at, terms_version, withdrawal_waiver_at) "
-                 "VALUES (:c, :g, :k, :t, :d, UTC_TIMESTAMP(), :tv, UTC_TIMESTAMP())"),
+            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, discount_amount, donation_amount, terms_accepted_at, terms_version, withdrawal_waiver_at) "
+                 "VALUES (:c, :g, :k, :t, :disc, :d, UTC_TIMESTAMP(), :tv, UTC_TIMESTAMP())"),
             {
                 "c": customer["id"] if customer else None,
                 "g": None if customer else order.email.lower(),
-                "k": cause["id"], "t": total, "d": don_total.quantize(Decimal("0.0001")), "tv": legal.terms_version(),
+                "k": cause["id"], "t": total, "disc": discount, "d": don_total.quantize(Decimal("0.0001")), "tv": legal.terms_version(),
             },
         ).lastrowid
+        referral.attach(c, credit_ids, order_id)
 
         for it, label, unit_price, don in lines:
             c.execute(
@@ -120,9 +132,11 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
     return {
         "order_id": order_id,
         "total": float(total),
+        "discount": float(discount),
         "donation": float(don_total),
         "cause": {"id": cause["id"], "name": cause["name"], "unit": cause["unit"]},
         "impact_units": float(don_total / Decimal(cause["cost_per_unit"])),
         # lignes à facturer (prix issus de la base) : consommées par payments.py, jamais renvoyées au navigateur
         "_lines": [{"kind": it.kind, "label": label, "unit_price": unit_price, "qty": it.qty} for it, label, unit_price, _ in lines],
+        "_discount": discount,
     }

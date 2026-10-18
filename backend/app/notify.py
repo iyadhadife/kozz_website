@@ -208,6 +208,11 @@ def notify_order(order_id: int) -> dict:
     if not _already_sent(order_id, "email"):
         if not o["email"]:
             result["email"] = "skipped"
+        elif not pdf and _env("ALLOW_EMAIL_WITHOUT_INVOICE").lower() != "true":
+            # Pas de facture (identité du vendeur incomplète) : on n'envoie pas, sinon l'e-mail serait marqué « envoyé » sans
+            # facture et ne serait jamais renvoyé avec. Il partira au prochain `python -m app.post_payment --pending`.
+            log.warning("Commande %s : e-mail retenu, aucune facture émise (compléter les SELLER_*)", order_id)
+            result["email"] = "waiting_invoice"
         else:
             try:
                 subject, text_body, html_body, inline = build_email(o, esims, inv)
@@ -225,7 +230,9 @@ def notify_order(order_id: int) -> dict:
 
     if not _already_sent(order_id, "sms"):
         phone = (o["customer_phone"] or "").replace(" ", "")
-        if not phone:
+        with engine.connect() as cn:  # préférence du compte (invité : SMS autorisé)
+            sms_ok = cn.execute(text("SELECT COALESCE(c.notif_sms, 1) FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.id=:o"), {"o": order_id}).scalar()
+        if not phone or not sms_ok:
             result["sms"] = "skipped"
         else:
             try:

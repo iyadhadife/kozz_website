@@ -276,3 +276,9 @@ a.dest:hover { border-color: var(--coral); }
 .inv { display: grid; grid-template-columns: 1.3fr 1fr auto auto; gap: 1rem; padding: .8rem 1rem; background: var(--card2); border-radius: 12px; font-size: .9rem; }
 @media (max-width: 600px) { .inv { grid-template-columns: 1fr auto; } .inv span:nth-child(2) { display: none; } }
 .footer .legal-page a { color: var(--muted); }
+
+.ref-banner { background: rgba(244,162,89,.12); border: 1px solid var(--orange); color: var(--sand); padding: .7rem 1rem; border-radius: 12px; font-size: .9rem; margin: 0 0 1rem; }
+
+.code-input { font-size: 1.8rem; letter-spacing: .6rem; text-align: center; font-weight: 700; }
+.linklike { background: none; border: 0; padding: 0; color: var(--coral); cursor: pointer; font: inherit; text-decoration: underline; }
+.linklike:disabled { color: var(--muted); cursor: default; text-decoration: none; }

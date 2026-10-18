@@ -8,6 +8,7 @@ import stripe
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import text
 
+from . import referral
 from .db import engine
 from .fulfillment import esims_for_order, fulfilment_state
 from .invoicing import get_pdf
@@ -54,12 +55,21 @@ def start_checkout(order: dict, email: str) -> dict:
             price_data["recurring"] = {"interval": "month"}
         line_items.append({"price_data": price_data, "quantity": l["qty"]})
 
+    discounts = []
+    discount = order.get("_discount") or Decimal(0)
     try:
+        if discount > 0:  # remise parrainage : coupon à usage unique, créé pour cette commande
+            coupon = client.v1.coupons.create(
+                params={"amount_off": _cents(discount), "currency": "eur", "duration": "once", "name": "Remise parrainage", "max_redemptions": 1},
+                options={"idempotency_key": f"kozz-coupon-{order_id}"},
+            )
+            discounts = [{"coupon": coupon.id}]
         # Pas de payment_method_types : les moyens de paiement (carte, Apple/Google Pay…) se règlent dans le Dashboard
         session = client.v1.checkout.sessions.create(
             params={
                 "mode": "subscription" if has_subscription else "payment",
                 "line_items": line_items,
+                **({"discounts": discounts} if discounts else {}),
                 "customer_email": email,
                 "client_reference_id": str(order_id),
                 "metadata": {"order_id": str(order_id)},
@@ -88,7 +98,9 @@ def start_checkout(order: dict, email: str) -> dict:
 
 def _set_status(order_id: int, status: str) -> None:
     with engine.begin() as c:
-        c.execute(text("UPDATE orders SET status = :s WHERE id = :i AND status = 'created'"), {"s": status, "i": order_id})
+        changed = c.execute(text("UPDATE orders SET status = :s WHERE id = :i AND status = 'created'"), {"s": status, "i": order_id}).rowcount
+        if changed and status == "failed":
+            referral.release(c, order_id)  # le crédit de parrainage redevient utilisable
 
 
 def mark_paid(session: dict) -> bool:
@@ -116,6 +128,7 @@ def mark_paid(session: dict) -> bool:
             {"p": session.get("payment_intent"), "n": (details.get("name") or None), "a": json.dumps(addr) if addr else None,
              "co": addr.get("country"), "ph": details.get("phone"), "i": order_id},
         )
+        referral.on_paid(c, order_id)  # crédits consommés ; crédit du parrain si 1re commande du filleul
     process_in_background(order_id)  # eSIM, facture, e-mail et SMS : hors de la requête Stripe
     return True
 

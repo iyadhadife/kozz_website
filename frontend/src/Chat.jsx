@@ -5,7 +5,7 @@ const threadId = crypto.randomUUID();
 
 export default function Chat() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([{ role: "bot", text: "Salut ! Une question sur ton eSIM ou une recharge ?" }]);
+  const [messages, setMessages] = useState([{ role: "bot", text: "Salut ! Une question sur ton eSIM ?" }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const log = useRef(null);

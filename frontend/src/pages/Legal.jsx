@@ -69,8 +69,7 @@ export function Cgv() {
       <p>{v(s.name)}, {v(s.legal_form)}, SIREN {v(s.siren)}, {v(s.address)} (« KozzGo »). Contact : {v(s.email)}.</p>
       <h2>2. Produits</h2>
       <p>
-        KozzGo vend (a) des eSIM de voyage, forfaits de données utilisables à l'étranger, (b) des recharges de crédit pour la ligne mobile d'un proche
-        à l'étranger, et (c) un abonnement mensuel « Kozz Monde ». Les caractéristiques (volume de données, durée, pays couverts) sont indiquées sur la
+        KozzGo vend (a) des eSIM de voyage, forfaits de données utilisables à l'étranger, et (b) un abonnement mensuel « Kozz Monde ». Les caractéristiques (volume de données, durée, pays couverts) sont indiquées sur la
         page de chaque produit avant la commande. Pour les offres « illimitées », la politique d'usage raisonnable (fair use) est affichée avant l'achat.
       </p>
       <h2>3. Prix</h2>
@@ -98,6 +97,13 @@ export function Cgv() {
       </p>
       <h2>7. Abonnement Kozz Monde</h2>
       <p>L'abonnement est mensuel et se renouvelle automatiquement. Tu peux le résilier à tout moment, en ligne et sans frais ; la résiliation prend effet à la fin de la période en cours.</p>
+      <h2>7 bis. Parrainage</h2>
+      <p>
+        Un client peut parrainer une personne qui n'a pas encore de compte en lui transmettant son lien. Le filleul reçoit 1,50 € de remise sur sa prochaine
+        commande dès la création de son compte ; le parrain reçoit 1,50 € de remise quand son filleul a payé sa première commande. Les remises sont déduites
+        automatiquement du prix, ne sont ni remboursables ni convertibles en argent, ne sont pas cumulables avec un montant à payer inférieur à 0,50 € et ne
+        valent que pour un parrainage entre deux personnes distinctes. KozzGo peut refuser ou annuler les remises obtenues par un usage abusif (faux comptes).
+      </p>
       <h2>8. Garanties légales</h2>
       <p>
         Tu bénéficies de la garantie légale de conformité prévue par le Code de la consommation et de la garantie des vices cachés (articles 1641 et suivants du
@@ -124,7 +130,7 @@ export function Retractation() {
   return (
     <Shell title="Droit de rétractation" info={info}>
       <p>
-        Pour un achat à distance, le consommateur dispose en principe de 14 jours pour se rétracter sans donner de motif. Pour les eSIM et les recharges, qui sont
+        Pour un achat à distance, le consommateur dispose en principe de 14 jours pour se rétracter sans donner de motif. Pour les eSIM, qui sont
         fournies immédiatement, ce droit est perdu une fois le service fourni si tu as demandé l'exécution immédiate et reconnu cette conséquence avant le
         paiement (article L221-28 du Code de la consommation). Si tu ne l'as pas fait, ou pour l'abonnement Kozz Monde avant sa première utilisation, tu peux te rétracter :
       </p>
@@ -148,7 +154,7 @@ export function Confidentialite() {
       <p>{v(s.name)}, {v(s.address)} · {v(s.email)}</p>
       <h2>Données collectées et finalités</h2>
       <ul>
-        <li><strong>Exécuter ta commande</strong> (base légale : contrat) : e-mail, nom, adresse de facturation, téléphone, produits commandés, numéro de la ligne du proche pour une recharge.</li>
+        <li><strong>Exécuter ta commande</strong> (base légale : contrat) : e-mail, nom, adresse de facturation, téléphone, produits commandés.</li>
         <li><strong>Te facturer et respecter nos obligations comptables</strong> (obligation légale) : factures conservées 10 ans.</li>
         <li><strong>T'envoyer ta confirmation, ta facture et tes informations d'installation</strong> par e-mail et SMS (contrat). Nous n'envoyons pas de publicité sans ton accord préalable.</li>
         <li><strong>Gérer ton compte</strong> (contrat) : tant que ton compte existe. Ton mot de passe est haché ; nous ne pouvons pas le lire.</li>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { StoreProvider } from "./store.jsx";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -13,7 +13,7 @@ import { Cgv, Confidentialite, MentionsLegales, Retractation } from "./pages/Leg
 import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog } from "./data.js";
-import { HelpPage, HowPage, ImpactPage, MondePage, RechargePage } from "./pages/Pages.jsx";
+import { HelpPage, HowPage, ImpactPage, MondePage } from "./pages/Pages.jsx";
 
 // Remonte en haut à chaque page, ou défile vers l'ancre (#assistant…)
 function ScrollManager() {
@@ -28,6 +28,15 @@ function ScrollManager() {
   return null;
 }
 
+// Lien de parrainage : https://site/?ref=CODE -> code mémorisé, puis page d'inscription
+function ReferralLanding() {
+  const { search, pathname } = useLocation();
+  const code = new URLSearchParams(search).get("ref")?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  if (!code || pathname === "/connexion") return null;
+  try { localStorage.setItem("kozz_ref", code); } catch {}
+  return <Navigate to="/connexion?mode=register" replace />;
+}
+
 export default function App() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -37,6 +46,7 @@ export default function App() {
 
   return (
     <StoreProvider>
+      <ReferralLanding />
       <ScrollManager />
       <Navbar />
       <main>
@@ -53,7 +63,6 @@ export default function App() {
           <Route path="/destinations" element={<Destinations />} />
           <Route path="/destinations/:id" element={<Destination />} />
           <Route path="/kozz-monde" element={<div className="page"><MondePage /></div>} />
-          <Route path="/recharge" element={<div className="page"><RechargePage /></div>} />
           <Route path="/comment-ca-marche" element={<div className="page"><HowPage /></div>} />
           <Route path="/impact" element={<div className="page"><ImpactPage /></div>} />
           <Route path="/aide" element={<div className="page"><HelpPage /></div>} />

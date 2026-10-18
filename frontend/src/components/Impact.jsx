@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { animate, motion, useInView } from "framer-motion";
 import Section from "./Section.jsx";
-import { CAUSES, eur, fmtNum, impactUnits } from "../data.js";
+import { eur, fmtNum } from "../data.js";
 import { useStore } from "../store.jsx";
+import { api } from "../api.js";
 
-function Counter({ value, format }) {
+export function Counter({ value, format }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false });
   useEffect(() => {
@@ -19,41 +21,55 @@ function Counter({ value, format }) {
   return <span ref={ref}>{format(0)}</span>;
 }
 
+// Passeport d'impact : calculé par le serveur à partir des commandes PAYÉES du compte (plus de données locales)
 export default function Impact() {
-  const { passport } = useStore();
-  const totalDon = passport.reduce((s, o) => s + o.don, 0);
-  const byCause = CAUSES.map((c) => {
-    const don = passport.filter((o) => o.causeId === c.id).reduce((s, o) => s + o.don, 0);
-    return { cause: c, don, units: impactUnits(don, c) };
-  }).filter((x) => x.don > 0);
+  const { user } = useStore();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      setData(null);
+      return;
+    }
+    api("/me/impact").then(setData).catch(() => setData({ total: 0, orders: 0, causes: [] }));
+  }, [user]);
 
   return (
-    <Section id="impact" title="Ton Passeport d'impact" subtitle="Chaque achat finance 10 % de la marge à la cause de ton choix. Ici, ce que tu as déjà financé.">
-      {passport.length === 0 ? (
+    <Section id="impact" title="Ton Passeport d'impact" subtitle="Chaque achat finance 10 % du prix HT à la cause de ton choix. Ici, ce que tu as déjà financé.">
+      {user === undefined || (user && !data) ? (
+        <p className="muted">Chargement…</p>
+      ) : !user ? (
+        <div className="card empty">
+          <p>Connecte-toi pour voir ton impact.</p>
+          <p className="muted">Ton passeport additionne les dons générés par tes commandes payées.</p>
+          <Link to="/connexion?next=/impact" className="btn">Me connecter</Link>
+        </div>
+      ) : data.orders === 0 ? (
         <div className="card empty">
           <p>Aucun impact pour l'instant.</p>
-          <p className="muted">Ton premier achat apparaîtra ici : en repas, arbres, jours d'école connectée…</p>
+          <p className="muted">Ta première commande payée apparaîtra ici : en repas, arbres, jours d'école connectée…</p>
         </div>
       ) : (
         <>
           <div className="card total">
-            <span className="lbl">Total reversé</span>
-            <strong className="big"><Counter value={totalDon} format={eur} /></strong>
-            <span className="muted">{passport.length} commande{passport.length > 1 ? "s" : ""}</span>
+            <span className="lbl">Dons générés par tes achats</span>
+            <strong className="big"><Counter value={data.total} format={eur} /></strong>
+            <span className="muted">{data.orders} commande{data.orders > 1 ? "s" : ""}</span>
           </div>
           <div className="tiers">
-            {byCause.map(({ cause, units }) => (
-              <motion.div key={cause.id} className="card tier" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                <span className="tier-icon">{cause.emoji}</span>
-                <p className="big"><Counter value={units} format={fmtNum} /></p>
-                <p className="muted">{cause.unit}</p>
+            {data.causes.map((c) => (
+              <motion.div key={c.id} className="card tier" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                <span className="tier-icon">{c.emoji}</span>
+                <p className="big"><Counter value={c.units} format={fmtNum} /></p>
+                <p className="muted">{c.unit}</p>
+                <small className="muted">{eur(c.donation)} · {c.name}</small>
               </motion.div>
             ))}
           </div>
         </>
       )}
       <p className="muted note">
-        Chiffres indicatifs en démo : les unités d'impact seront validées avec chaque ONG partenaire (conventions en cours de finalisation).
+        Chiffres indicatifs : les unités d'impact seront validées avec chaque ONG partenaire (conventions en cours de finalisation).
       </p>
     </Section>
   );

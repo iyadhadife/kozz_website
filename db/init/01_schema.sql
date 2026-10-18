@@ -188,3 +188,66 @@ CREATE TABLE notifications (
   UNIQUE KEY uq_notif (order_id, channel, kind),
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+-- Relevés de prix concurrents (traçabilité de chaque prix calculé)
+CREATE TABLE IF NOT EXISTS competitor_prices (
+  destination_id CHAR(2) NOT NULL,
+  tier_key       VARCHAR(10) NOT NULL,
+  source         VARCHAR(20) NOT NULL,
+  price_ttc      DECIMAL(6,2) NOT NULL,
+  plan_label     VARCHAR(60) NOT NULL,       -- ex. « 3 GB / 30 days »
+  fetched_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (destination_id, tier_key, source),
+  FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE CASCADE,
+  FOREIGN KEY (tier_key) REFERENCES tiers(`key`)
+) ENGINE=InnoDB;
+-- Parrainage : crédits de 1,50 € (filleul à l'inscription, parrain à la 1re commande payée du filleul)
+ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(6,2) NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS referral_credits (
+  id                 BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  customer_id        BIGINT UNSIGNED NOT NULL,
+  amount             DECIMAL(6,2) NOT NULL,
+  kind               ENUM('referee','referrer') NOT NULL,
+  source_customer_id BIGINT UNSIGNED NOT NULL,           -- l'autre personne du parrainage
+  status             ENUM('available','reserved','used') NOT NULL DEFAULT 'available',
+  order_id           BIGINT UNSIGNED NULL,               -- commande qui l'a réservé / utilisé
+  created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  used_at            TIMESTAMP NULL,
+  UNIQUE KEY uq_credit_once (customer_id, kind, source_customer_id),   -- un parrainage ne rapporte qu'une fois
+  INDEX idx_credit_customer (customer_id, status),
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+-- Vérification de l'e-mail à l'inscription : le compte n'existe qu'après saisie du code reçu
+ALTER TABLE customers ADD COLUMN email_verified_at TIMESTAMP NULL;
+UPDATE customers SET email_verified_at = created_at WHERE email_verified_at IS NULL;   -- comptes déjà existants
+
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  email          VARCHAR(255) PRIMARY KEY,
+  password_hash  VARCHAR(255) NOT NULL,
+  first_name     VARCHAR(100) NULL,
+  ref            VARCHAR(12) NULL,
+  code_hash      CHAR(64) NOT NULL,            -- empreinte du code : le code lui-même n'est jamais stocké
+  attempts       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  sends          TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  expires_at     DATETIME NOT NULL,
+  last_sent_at   DATETIME NOT NULL,
+  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+-- Profil : téléphone, cause préférée, notifications, proches
+ALTER TABLE customers
+  ADD COLUMN phone              VARCHAR(30) NULL,
+  ADD COLUMN cause_id           VARCHAR(20) NULL,
+  ADD COLUMN notif_sms          BOOLEAN NOT NULL DEFAULT TRUE,     -- SMS de commande (les e-mails de commande/facture sont toujours envoyés)
+  ADD COLUMN marketing_optin    BOOLEAN NOT NULL DEFAULT FALSE,    -- offres et actualités : OFF par défaut, consentement explicite
+  ADD COLUMN marketing_optin_at TIMESTAMP NULL,
+  ADD CONSTRAINT fk_customer_cause FOREIGN KEY (cause_id) REFERENCES causes(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS relatives (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  name        VARCHAR(100) NOT NULL,
+  phone       VARCHAR(30) NULL,
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_relatives_customer (customer_id),
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE   -- supprimés avec le compte
+) ENGINE=InnoDB;

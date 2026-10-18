@@ -20,20 +20,19 @@ export default function Hero() {
     <section className="hero">
       <Dots />
       <motion.div className="hero-inner" variants={container} initial="hidden" animate="show">
-        <motion.span className="pill" variants={item}>eSIM voyage & recharges solidaires</motion.span>
+        <motion.span className="pill" variants={item}>eSIM voyage solidaires</motion.span>
         <motion.h1 variants={item}>
           Voyagez connecté.<br />
           Voyagez <span className="accent">utile.</span>
         </motion.h1>
         <motion.p className="lead" variants={item}>
-          Chaque eSIM et chaque recharge finance une cause que tu choisis. Ton impact est visible dans l'appli.
+          Chaque eSIM finance une cause que tu choisis. Ton impact est visible dans l'appli.
         </motion.p>
         <motion.div className="hero-search" variants={item}>
           <SearchBox />
         </motion.div>
         <motion.div className="row" variants={item}>
           <Link to="/#assistant" className="btn btn-ghost">Trouver le forfait idéal</Link>
-          <Link to="/recharge" className="btn btn-ghost">Recharger un proche</Link>
         </motion.div>
         <motion.ul className="stats" variants={item}>
           {STATS.map(([n, l]) => (
