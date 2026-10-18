@@ -6,6 +6,7 @@ from . import security as sec
 from .auth import router as auth_router
 from .legal import router as legal_router
 from .phone_verify import router as phone_router
+from .og import router as og_router
 from .db import engine
 from . import fx, payments
 from .orders import OrderIn, create_order
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(payments.router)
 app.include_router(legal_router)
 app.include_router(phone_router)
+app.include_router(og_router)
 
 
 @app.on_event("startup")
@@ -75,13 +77,15 @@ def global_impact():
     if _impact_cache["data"] and time.time() - _impact_cache["at"] < 60:
         return _impact_cache["data"]
     since = os.getenv("IMPACT_COUNT_FROM", "").strip() or "1970-01-01"
+    # Comptes de démo (@demo.invalid, voir scripts/seed_demo.py) : exclus des chiffres publics sauf IMPACT_INCLUDE_DEMO=true (jamais en production)
+    nodemo = "" if os.getenv("IMPACT_INCLUDE_DEMO", "false").lower() == "true" else         " AND (o.customer_id IS NULL OR o.customer_id NOT IN (SELECT id FROM customers WHERE email LIKE '%@demo.invalid'))"
     try:
         with engine.connect() as c:
             rows = c.execute(
                 text(
                     "SELECT ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit, SUM(o.donation_amount) AS don, COUNT(*) AS n "
                     "FROM orders o JOIN causes ca ON ca.id = o.cause_id "
-                    "WHERE o.status IN ('paid','provisioned') AND o.created_at >= :s GROUP BY ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit"
+                    "WHERE o.status IN ('paid','provisioned') AND o.created_at >= :s" + nodemo + " GROUP BY ca.id, ca.name, ca.emoji, ca.unit, ca.cost_per_unit"
                 ),
                 {"s": since},
             ).mappings().all()
@@ -97,7 +101,7 @@ def global_impact():
     )
     total = round(sum(x["donation"] for x in causes), 2)
     orders = sum(x["orders"] for x in causes)
-    ok = "o.status IN ('paid','provisioned') AND o.created_at >= :s"
+    ok = "o.status IN ('paid','provisioned') AND o.created_at >= :s" + nodemo
     try:
         with engine.connect() as c:
             one = c.execute(

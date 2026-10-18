@@ -16,8 +16,10 @@ export default function TextMotion({ paused }) {
       });
       setTimeout(() => { delete el.dataset.rv; }, 2600); // filet de sécurité si transitionend n'arrive pas
     };
+    // Un champ masqué par clip-path ne « coupe » jamais la fenêtre selon le navigateur : on observe donc son conteneur.
+    const owners = new Map();
     const io = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); reveal(e.target); }
+      for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); (owners.get(e.target) || [e.target]).forEach(reveal); owners.delete(e.target); }
     }, { rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
 
     const prep = (root) => {
@@ -31,7 +33,9 @@ export default function TextMotion({ paused }) {
         el.style.setProperty("--d", `${Math.min(Math.max(idx, 0), 6) * 70}ms`);
         el.dataset.rvk = kind;
         el.dataset.rv = "0";
-        io.observe(el);
+        const target = kind === "field" && el.parentElement ? el.parentElement : el;
+        owners.set(target, [...(owners.get(target) || []), el]);
+        io.observe(target);
       });
     };
     prep(document.body);
