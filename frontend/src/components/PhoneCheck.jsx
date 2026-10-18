@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { t, tx } from "../i18n.js";
+import EsimTest from "./EsimTest.jsx";
+import { t } from "../i18n.js";
 
 // Chargé à la demande (la liste fait ~25 Ko) : une seule fois pour tout le site.
 let cache;
@@ -26,7 +27,7 @@ export default function PhoneCheck() {
   return (
     <div className="card pre-card">
       <h3 className="pre-title"><span className="pre-ico" aria-hidden="true">📱</span>{t("Mon téléphone est-il compatible ?")}</h3>
-      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Saisis ton modèle, ex. iPhone 15")} aria-label={t("Mon téléphone est-il compatible ?")} autoComplete="off" />
+      <div className="pc-search"><span className="pc-glass" aria-hidden="true">⌕</span><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Saisis ton modèle, ex. iPhone 15")} aria-label={t("Mon téléphone est-il compatible ?")} autoComplete="off" /></div>
       <div className="pc-out" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           {key(q).length < 2 ? null : hits.length ? (
@@ -41,7 +42,7 @@ export default function PhoneCheck() {
           )}
         </AnimatePresence>
       </div>
-      <p className="pc-tip">{tx("Vérification rapide : compose {code} sur ton téléphone. Si un numéro EID s'affiche, ton téléphone est compatible eSIM. Il doit aussi être désimlocké.", { code: <code>*#06#</code> })}</p>
+      <EsimTest />
       <Link to="/telephones-compatibles" className="pre-link">{t("Voir tous les téléphones compatibles →")}</Link>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Section from "../components/Section.jsx";
 import { flat, key, loadDevices } from "../components/PhoneCheck.jsx";
+import EsimTest from "../components/EsimTest.jsx";
 import { currentLocale, t } from "../i18n.js";
 
 const CATS = [["phone", "Téléphones"], ["tablet", "Tablettes"], ["watch", "Montres"], ["laptop", "Ordinateurs"]];
@@ -34,6 +35,7 @@ export default function Compatible() {
 
   return (
     <Section id="compatibles" title={t("Téléphones compatibles eSIM")} subtitle={t("Retrouve ton appareil dans la liste. Elle regroupe plus de {n} modèles, issus de listes publiques : la compatibilité peut varier selon le pays d'achat, la version et le blocage de l'opérateur.", { n: Math.floor((data?.length || 700) / 50) * 50 })}>
+      <EsimTest />
       <input className="filter" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher un appareil ou une marque…")} aria-label={t("Rechercher un appareil ou une marque…")} />
       <div className="chips">
         {CATS.map(([k, l]) => (

@@ -662,3 +662,15 @@ input:focus, select:focus { transition: box-shadow .25s; box-shadow: 0 0 0 4px r
 .chip small { opacity: .6; margin-inline-start: .2rem; }
 .compat-how { margin-top: 2rem; display: grid; gap: .6rem; }
 .compat-how ul { padding-inline-start: 1.2rem; display: grid; gap: .3rem; }
+
+/* Recherche de modèle + test *#06# */
+.pc-search { position: relative; }
+.pc-search input { width: 100%; padding: .95rem 1rem .95rem 2.7rem; font-size: 1.05rem; border-radius: 16px; border: 2px solid var(--line); background: var(--card); }
+.pc-search input:focus { border-color: var(--brand, #3aa573); outline: none; box-shadow: 0 0 0 4px rgba(58,165,115,.16); }
+.pc-glass { position: absolute; left: .95rem; top: 50%; transform: translateY(-52%); font-size: 1.5rem; color: var(--muted); pointer-events: none; }
+.esim-test { background: linear-gradient(135deg, #12372a, #1f7a50); color: #fff; border-radius: 18px; padding: 1.1rem 1.2rem; display: grid; gap: .35rem; margin-block: .25rem; }
+.esim-test .et-badge { justify-self: start; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.18); padding: .2rem .6rem; border-radius: 999px; }
+.esim-test .et-title { font-size: 1.35rem; font-weight: 800; line-height: 1.2; margin: 0; }
+.esim-test code { background: #fff; color: #12372a; border-radius: 8px; padding: .05rem .5rem; font-size: 1.1em; }
+.esim-test .et-text { margin: 0; font-size: .95rem; opacity: .95; }
+.esim-test .et-text strong { font-weight: 700; }
