@@ -9,6 +9,7 @@ import Home from "./pages/Home.jsx";
 import Destinations from "./pages/Destinations.jsx";
 import Destination from "./pages/Destination.jsx";
 import { CheckoutCanceled, CheckoutSuccess } from "./pages/Checkout.jsx";
+import { Cgv, Confidentialite, MentionsLegales, Retractation } from "./pages/Legal.jsx";
 import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog } from "./data.js";
@@ -43,6 +44,10 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/commande/succes" element={<CheckoutSuccess />} />
           <Route path="/commande/annulee" element={<CheckoutCanceled />} />
+          <Route path="/mentions-legales" element={<MentionsLegales />} />
+          <Route path="/cgv" element={<Cgv />} />
+          <Route path="/confidentialite" element={<Confidentialite />} />
+          <Route path="/retractation" element={<Retractation />} />
           <Route path="/connexion" element={<Login />} />
           <Route path="/profil" element={<Profile />} />
           <Route path="/destinations" element={<Destinations />} />

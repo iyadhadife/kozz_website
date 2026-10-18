@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
+from . import legal
 from .db import engine
 from .pricing import donation
 
@@ -33,6 +34,9 @@ class OrderIn(BaseModel):
     email: Optional[str] = Field(None, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     cause_id: str = Field(max_length=20)
     items: list[ItemIn] = Field(min_length=1, max_length=20)
+    # Consentements exprès, exigés avant tout paiement (conservés avec la date et la version des CGV)
+    accept_terms: bool = False
+    waive_withdrawal: bool = False
 
 
 def _price_item(c, it: ItemIn):
@@ -73,6 +77,8 @@ def _price_item(c, it: ItemIn):
 def create_order(order: OrderIn, customer: Optional[dict] = None):
     if not customer and not order.email:
         raise HTTPException(422, "E-mail requis")
+    if not (order.accept_terms and order.waive_withdrawal):
+        raise HTTPException(422, "Tu dois accepter les conditions générales et demander l'exécution immédiate pour continuer.")
     with engine.begin() as c:  # une seule transaction : tout ou rien
         cause = c.execute(text("SELECT id, name, unit, cost_per_unit FROM causes WHERE id = :i"), {"i": order.cause_id}).mappings().first()
         if not cause:
@@ -89,11 +95,12 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
 
         # Connecté : commande rattachée au compte. Invité : on garde seulement l'e-mail, jamais de compte implicite.
         order_id = c.execute(
-            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, donation_amount) VALUES (:c, :g, :k, :t, :d)"),
+            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, donation_amount, terms_accepted_at, terms_version, withdrawal_waiver_at) "
+                 "VALUES (:c, :g, :k, :t, :d, UTC_TIMESTAMP(), :tv, UTC_TIMESTAMP())"),
             {
                 "c": customer["id"] if customer else None,
                 "g": None if customer else order.email.lower(),
-                "k": cause["id"], "t": total, "d": don_total.quantize(Decimal("0.0001")),
+                "k": cause["id"], "t": total, "d": don_total.quantize(Decimal("0.0001")), "tv": legal.terms_version(),
             },
         ).lastrowid
 

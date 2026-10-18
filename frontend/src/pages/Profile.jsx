@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "../api.js";
 import { eur, fmtNum } from "../data.js";
+import EsimInstall from "../components/EsimInstall.jsx";
 import { useStore } from "../store.jsx";
 
 const STATUS_LABEL = { created: "En attente de paiement", paid: "Payée", provisioned: "Livrée", refunded: "Remboursée" };
@@ -124,6 +125,32 @@ function Orders() {
                 ))}
               </motion.ul>
             )}
+            {open === o.id && o.esims?.length > 0 && <EsimInstall esims={o.esims} />}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Invoices() {
+  const [list, setList] = useState(null);
+  useEffect(() => {
+    api("/me/invoices").then(setList).catch(() => setList([]));
+  }, []);
+  if (!list?.length) return null;
+  return (
+    <div className="card">
+      <h3>Mes factures</h3>
+      <ul className="orders">
+        {list.map((f) => (
+          <li key={f.number}>
+            <a className="inv" href={`/api/me/invoices/${f.number}/pdf`}>
+              <span>{f.number}</span>
+              <span>{new Date(f.issued_at + "Z").toLocaleDateString("fr-FR")}</span>
+              <strong>{eur(f.total)}</strong>
+              <span className="accent">Télécharger (PDF)</span>
+            </a>
           </li>
         ))}
       </ul>
@@ -206,6 +233,7 @@ export default function Profile() {
       </div>
 
       <Orders />
+      <Invoices />
       <Danger onDeleted={() => { setUser(null); nav("/"); }} />
     </div>
   );

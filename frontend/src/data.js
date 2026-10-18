@@ -69,7 +69,7 @@ export const eur = (n) => n.toLocaleString("fr-FR", { style: "currency", currenc
 export const fmtNum = (n) => n.toLocaleString("fr-FR", { maximumFractionDigits: n < 10 ? 1 : 0 });
 
 // --- Navigation / catalogue ---
-export const flag = (id) => `https://flagcdn.com/w80/${id}.png`; // les emojis drapeaux ne s'affichent pas sous Windows
+export const flag = (id) => `/flags/${id}.svg`; // hébergés chez nous (RGPD : aucune requête vers un tiers) ; les emojis drapeaux ne s'affichent pas sous Windows
 export const POPULAR = ["ma", "es", "th", "id", "tr", "ae", "us", "jp", "it", "tn", "pt", "vn"];
 export const ZONES = [...new Set(DESTINATIONS.map((d) => d.zone))];
 export const fromPrice = (d) => d.prices[0];

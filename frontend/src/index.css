@@ -255,3 +255,24 @@ a.dest:hover { border-color: var(--coral); }
 .checkout-result .heart { font-size: 4rem; }
 .spinner { width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--coral); animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* installation eSIM */
+.esims { display: grid; gap: 1rem; width: min(480px, 100%); margin-top: 1rem; }
+.esim { display: grid; gap: .8rem; justify-items: center; text-align: center; }
+.qr { background: #fff; padding: 10px; border-radius: 12px; }
+.install-steps { text-align: left; padding-left: 1.2rem; font-size: .88rem; }
+
+/* légal & consentements */
+.legal-page { max-width: 800px; margin: 0 auto; padding: 7rem 1.5rem 4rem; }
+.legal-page h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 1rem; }
+.legal-page h2 { font-size: 1.15rem; margin: 1.6rem 0 .5rem; color: var(--sand); }
+.legal-page p, .legal-page li { color: #d6d3dc; margin-bottom: .6rem; }
+.legal-page ul { padding-left: 1.2rem; }
+.legal-page a { color: var(--coral); }
+.legal-page blockquote { border-left: 3px solid var(--coral); padding: .6rem 1rem; background: var(--card); border-radius: 0 12px 12px 0; }
+.draft { background: rgba(244,162,89,.12); border: 1px solid var(--orange); color: var(--orange) !important; padding: .7rem 1rem; border-radius: 12px; font-size: .9rem; }
+.check { display: grid; grid-template-columns: auto 1fr; gap: .7rem; align-items: start; font-size: .82rem; color: var(--muted); }
+.check input { width: 18px; height: 18px; margin-top: .15rem; accent-color: var(--coral); }
+.inv { display: grid; grid-template-columns: 1.3fr 1fr auto auto; gap: 1rem; padding: .8rem 1rem; background: var(--card2); border-radius: 12px; font-size: .9rem; }
+@media (max-width: 600px) { .inv { grid-template-columns: 1fr auto; } .inv span:nth-child(2) { display: none; } }
+.footer .legal-page a { color: var(--muted); }

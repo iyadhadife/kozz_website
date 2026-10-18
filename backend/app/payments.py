@@ -1,13 +1,17 @@
+import json
 import logging
 import os
 import re
 from decimal import Decimal
 
 import stripe
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import text
 
 from .db import engine
+from .fulfillment import esims_for_order, fulfilment_state
+from .invoicing import get_pdf
+from .post_payment import process_in_background
 
 log = logging.getLogger("kozz.payments")
 router = APIRouter(prefix="/api")
@@ -62,6 +66,9 @@ def start_checkout(order: dict, email: str) -> dict:
                 "success_url": f"{SITE_URL}/commande/succes?session_id={{CHECKOUT_SESSION_ID}}",
                 "cancel_url": f"{SITE_URL}/commande/annulee",
                 "locale": "fr",
+                # Coordonnées obligatoires sur la facture et pour le SMS : saisies et vérifiées par Stripe
+                "billing_address_collection": "required",
+                "phone_number_collection": {"enabled": True},
                 "integration_identifier": INTEGRATION_ID,
                 # KozzGo reste le vendeur (prix TTC fixés par nous). Managed Payments (Stripe vendeur officiel) ne couvre
                 # que les produits numériques et exigerait un code fiscal par produit : eSIM et recharges n'en font pas partie.
@@ -99,10 +106,17 @@ def mark_paid(session: dict) -> bool:
         if session["amount_total"] != _cents(Decimal(order["total_ttc"])):
             log.error("Webhook: montant payé %s ≠ attendu %s pour la commande %s", session["amount_total"], order["total_ttc"], order_id)
             return False
+        details = session.get("customer_details") or {}
+        addr = details.get("address") or {}
         c.execute(
-            text("UPDATE orders SET status = 'paid', stripe_payment_intent = :p WHERE id = :i"),
-            {"p": session.get("payment_intent"), "i": order_id},
+            text(
+                "UPDATE orders SET status='paid', stripe_payment_intent=:p, billing_name=:n, billing_address=:a, "
+                "billing_country=:co, customer_phone=:ph WHERE id=:i"
+            ),
+            {"p": session.get("payment_intent"), "n": (details.get("name") or None), "a": json.dumps(addr) if addr else None,
+             "co": addr.get("country"), "ph": details.get("phone"), "i": order_id},
         )
+    process_in_background(order_id)  # eSIM, facture, e-mail et SMS : hors de la requête Stripe
     return True
 
 
@@ -180,6 +194,11 @@ def checkout_status(session_id: str):
             log.warning("Stripe retrieve a échoué: %s", e)
 
     paid = row["status"] in ("paid", "provisioned")
+    esims, state, invoice = [], "none", None
+    if paid:
+        with engine.connect() as c:
+            esims, state = esims_for_order(c, row["id"]), fulfilment_state(c, row["id"])
+            invoice = c.execute(text("SELECT number FROM invoices WHERE order_id=:o"), {"o": row["id"]}).scalar()
     return {
         "status": "paid" if paid else row["status"],
         "order_id": row["id"],
@@ -187,4 +206,22 @@ def checkout_status(session_id: str):
         "donation": float(row["donation_amount"]),
         "cause": {"id": row["cause_id"], "name": row["name"], "unit": row["unit"], "emoji": row["emoji"]},
         "impact_units": float(row["donation_amount"] / row["cost_per_unit"]),
+        "invoice": invoice,  # numéro, ou None tant que la facture n'est pas émise
+        "fulfilment": state,  # none | pending | ready | failed
+        "esims": esims if state in ("ready", "failed") else [],
     }
+
+
+@router.get("/checkout/{session_id}/invoice")
+def checkout_invoice(session_id: str):
+    """Facture d'une commande invitée (l'identifiant de session Stripe, long et aléatoire, tient lieu de lien secret)."""
+    if not re.fullmatch(r"cs_[A-Za-z0-9_]{10,200}", session_id):
+        raise HTTPException(404, "Introuvable")
+    with engine.connect() as c:
+        number = c.execute(
+            text("SELECT i.number FROM invoices i JOIN orders o ON o.id=i.order_id WHERE o.stripe_session_id=:s"), {"s": session_id}
+        ).scalar()
+        pdf = get_pdf(c, number) if number else None
+    if not pdf:
+        raise HTTPException(404, "Facture indisponible")
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{number}.pdf"'})

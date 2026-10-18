@@ -9,6 +9,8 @@ from sqlalchemy.exc import IntegrityError
 
 from . import security as sec
 from .db import engine
+from .fulfillment import esims_for_order, fulfilment_state
+from .invoicing import get_pdf
 
 router = APIRouter(prefix="/api")
 
@@ -205,6 +207,8 @@ def my_orders(cust=Depends(sec.require_customer)):
                     "created_at": o["created_at"].isoformat(),
                     "cause": {"name": o["cause"], "emoji": o["emoji"], "unit": o["unit"]},
                     "impact_units": float(o["donation_amount"] / o["cost_per_unit"]),
+                    "fulfilment": fulfilment_state(c, o["id"]) if o["status"] in ("paid", "provisioned") else "none",
+                    "esims": esims_for_order(c, o["id"]) if o["status"] in ("paid", "provisioned") else [],
                     "items": [
                         {
                             "label": i["label"],
@@ -218,3 +222,27 @@ def my_orders(cust=Depends(sec.require_customer)):
                 }
             )
     return out
+
+
+@router.get("/me/invoices")
+def my_invoices(cust=Depends(sec.require_customer)):
+    with engine.connect() as c:
+        rows = c.execute(
+            text("SELECT i.number, i.issued_at, i.total_ttc, i.order_id FROM invoices i JOIN orders o ON o.id=i.order_id "
+                 "WHERE o.customer_id=:c ORDER BY i.issued_at DESC"),
+            {"c": cust["id"]},
+        ).mappings().all()
+    return [{"number": r["number"], "issued_at": r["issued_at"].isoformat(), "total": float(r["total_ttc"]), "order_id": r["order_id"]} for r in rows]
+
+
+@router.get("/me/invoices/{number}/pdf")
+def my_invoice_pdf(number: str, cust=Depends(sec.require_customer)):
+    with engine.connect() as c:
+        owned = c.execute(
+            text("SELECT 1 FROM invoices i JOIN orders o ON o.id=i.order_id WHERE i.number=:n AND o.customer_id=:c"),
+            {"n": number, "c": cust["id"]},
+        ).first()
+        pdf = get_pdf(c, number) if owned else None
+    if not pdf:
+        raise HTTPException(404, "Facture introuvable")
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{number}.pdf"'})

@@ -11,12 +11,14 @@ export default function Cart() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [waive, setWaive] = useState(false);
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const don = cart.reduce((s, i) => s + donation(i.price * i.qty, i.kind), 0);
   const cause = CAUSES.find((c) => c.id === causeId);
   const units = impactUnits(don, cause);
-  const emailOk = !!user || /^\S+@\S+\.\S+$/.test(email);
+  const emailOk = (!!user || /^\S+@\S+\.\S+$/.test(email)) && acceptTerms && waive;
 
   const pay = async () => {
     setBusy(true);
@@ -25,7 +27,7 @@ export default function Cart() {
       // Le serveur recalcule les prix depuis la base, enregistre la commande puis ouvre une session Stripe Checkout
       const o = await api("/orders", {
         method: "POST",
-        body: { email: user ? undefined : email, cause_id: causeId, items: cart.map(({ uid, label, price, ...ref }) => ref) },
+        body: { email: user ? undefined : email, cause_id: causeId, accept_terms: acceptTerms, waive_withdrawal: waive, items: cart.map(({ uid, label, price, ...ref }) => ref) },
       });
       window.location.assign(o.checkout_url); // page de paiement hébergée par Stripe
     } catch (e) {
@@ -91,6 +93,21 @@ export default function Cart() {
                         <p className="muted"><Link to="/connexion" onClick={() => setOpen(false)} className="accent">Connecte-toi</Link> pour retrouver tes commandes.</p>
                       </>
                     )}
+
+                    <label className="check">
+                      <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
+                      <span>
+                        J'ai lu et j'accepte les <Link to="/cgv" target="_blank" className="accent">conditions générales de vente</Link> et la{" "}
+                        <Link to="/confidentialite" target="_blank" className="accent">politique de confidentialité</Link>.
+                      </span>
+                    </label>
+                    <label className="check">
+                      <input type="checkbox" checked={waive} onChange={(e) => setWaive(e.target.checked)} />
+                      <span>
+                        Je demande l'exécution immédiate de ma commande et je reconnais que, une fois l'eSIM ou la recharge fournie, je perds mon droit de
+                        rétractation (<Link to="/retractation" target="_blank" className="accent">en savoir plus</Link>).
+                      </span>
+                    </label>
 
                     <div className="totalrow"><span>Total TTC</span><strong>{eur(total)}</strong></div>
                     {error && <p className="error" role="alert">{error}</p>}

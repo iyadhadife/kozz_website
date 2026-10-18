@@ -26,7 +26,11 @@ export default function Footer() {
           </div>
         ))}
       </div>
-      <p className="muted legal">© 2026 KozzGo · Paiement sécurisé · Prix TTC</p>
+      <p className="muted legal">
+        © 2026 KozzGo · Paiement sécurisé · Prix TTC ·{" "}
+        <Link to="/mentions-legales">Mentions légales</Link> · <Link to="/cgv">CGV</Link> · <Link to="/confidentialite">Confidentialité</Link> ·{" "}
+        <Link to="/retractation">Rétractation</Link>
+      </p>
     </footer>
   );
 }

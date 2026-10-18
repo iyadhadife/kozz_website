@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "../api.js";
 import { eur, fmtNum } from "../data.js";
+import EsimInstall from "../components/EsimInstall.jsx";
 import { useStore } from "../store.jsx";
 
 const POLL_MS = 2000;
@@ -30,6 +31,9 @@ export function CheckoutSuccess() {
             recorded.current = true;
             checkout({ date: new Date().toISOString(), total: o.total, don: o.donation, causeId: o.cause.id }); // vide aussi le panier
           }
+          if (o.fulfilment !== "pending") return; // sinon on continue : l'eSIM est en cours de préparation chez le fournisseur
+          if (++tries >= MAX_TRIES) return;
+          timer = setTimeout(check, POLL_MS);
           return;
         }
         if (o.status === "failed") return setState("error");
@@ -61,6 +65,17 @@ export function CheckoutSuccess() {
           <p className="big">{fmtNum(order.impact_units)} {order.cause.unit}</p>
           <p className="muted">{order.cause.emoji} {order.cause.name} · {eur(order.donation)} reversés</p>
           <p className="muted">Commande n°{order.order_id}. Un reçu t'a été envoyé par Stripe.</p>
+          {order.fulfilment === "pending" && (
+            <div className="checkout-result" style={{ padding: 0 }}>
+              <div className="spinner" aria-hidden="true" />
+              <p className="muted">Nous préparons ton eSIM…</p>
+            </div>
+          )}
+          <EsimInstall esims={order.esims} />
+          {order.invoice && (
+            <a className="btn btn-ghost" href={`/api/checkout/${encodeURIComponent(sessionId)}/invoice`}>Télécharger ma facture {order.invoice}</a>
+          )}
+          <p className="muted note">Ta confirmation, ta facture et tes informations d'installation sont aussi envoyées par e-mail (et par SMS si tu as donné ton numéro).</p>
           <div className="row">
             <Link to="/profil" className="btn">Voir mes commandes</Link>
             <Link to="/impact" className="btn btn-ghost">Mon Passeport d'impact</Link>
