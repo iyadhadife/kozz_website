@@ -1,3 +1,5 @@
+import ThemeToggle from "./ThemeToggle.jsx";
+import Logo from "./Logo.jsx";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
@@ -65,7 +67,7 @@ export default function Navbar() {
 
   return (
     <motion.header className={`nav ${scrolled ? "scrolled" : ""}`} initial={{ y: -80, opacity: 0 }} animate={{ y: hidden ? -90 : 0, opacity: 1 }} transition={{ type: "spring", stiffness: 220, damping: 26 }}>
-      <Link to="/" className="brand"><img src="/logo.jpg" alt={t("KozzGo — accueil")} /></Link>
+      <Link to="/" className="brand"><Logo label={t("KozzGo — accueil")} /></Link>
 
       <nav className="nav-links" aria-label={t("Navigation principale")}>
         <div className="mega-wrap" onMouseEnter={() => setMega(true)} onMouseLeave={() => setMega(false)}>
@@ -80,6 +82,7 @@ export default function Navbar() {
 
       <div className="nav-right">
         <span className="nav-pickers"><LanguagePicker compact /><CurrencyPicker compact /></span>
+        <ThemeToggle />
         {user ? (
           <Link to="/profil" className="avatar avatar-sm" aria-label={t("Mon profil")} title={user.email}>
             {(user.first_name || user.email)[0].toUpperCase()}

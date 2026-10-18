@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useIntroActive } from "./introState.js";
 
 import { t } from "./i18n.js";
 const threadId = crypto.randomUUID();
@@ -10,6 +11,19 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const log = useRef(null);
+
+  // Bulle d'accroche à l'arrivée : apparaît après l'intro, disparaît seule, et ne revient pas une fois fermée (par session).
+  const intro = useIntroActive();
+  const [nudge, setNudge] = useState(false);
+  const seen = () => { try { return sessionStorage.getItem("kozz_nudge") === "1"; } catch { return false; } };
+  const dismiss = () => { setNudge(false); try { sessionStorage.setItem("kozz_nudge", "1"); } catch {} };
+  useEffect(() => {
+    if (intro || seen()) return;
+    const on = setTimeout(() => setNudge(true), 1400);
+    const off = setTimeout(dismiss, 11000);
+    return () => { clearTimeout(on); clearTimeout(off); };
+  }, [intro]);
+  useEffect(() => { if (open && nudge) dismiss(); }, [open]);
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight, behavior: "smooth" });
@@ -40,6 +54,17 @@ export default function Chat() {
   return (
     <div className="chat-wrap">
       <AnimatePresence>
+        {nudge && !open && (
+          <motion.div className="nudge" role="status" initial={{ opacity: 0, y: 24, scale: 0.6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.8 }} transition={{ type: "spring", stiffness: 340, damping: 18 }}>
+            <button type="button" className="nudge-main" onClick={() => { dismiss(); setOpen(true); }}>
+              <motion.span className="nudge-wave" animate={{ rotate: [0, 18, -10, 18, 0] }} transition={{ duration: 1.4, delay: 0.5, repeat: 2, repeatDelay: 1.2 }}>👋</motion.span>
+              <span><strong>{t("Tu as besoin d'aide ?")}</strong><small>{t("Pose-moi ta question !")}</small></span>
+            </button>
+            <button type="button" className="nudge-x" onClick={dismiss} aria-label={t("Fermer")}>✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {open && (
           <motion.form
             className="chat"
@@ -61,7 +86,7 @@ export default function Chat() {
           </motion.form>
         )}
       </AnimatePresence>
-      <motion.button className="chat-fab" onClick={() => setOpen((o) => !o)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label={t("Ouvrir le chat")}>
+      <motion.button className={`chat-fab ${nudge && !open ? "ping" : ""}`} onClick={() => { dismiss(); setOpen((o) => !o); }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label={t("Ouvrir le chat")}>
         {open ? "✕" : "💬"}
       </motion.button>
     </div>

@@ -291,7 +291,50 @@ function Relatives({ user, setUser }) {
   );
 }
 
-function Referral({ user }) {
+// A2F par SMS : visible seulement si le serveur l'a activée (PHONE_VERIFICATION_ENABLED). Le code est envoyé puis saisi ici.
+function PhoneVerify({ user, setUser }) {
+  const pv = user.phone_verification;
+  const [phone, setPhone] = useState(user.phone || "");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [fb, setFb] = useState(null);
+  if (!pv?.enabled) return null;
+  if (pv.verified) return <p className="ok">{t("Numéro vérifié ✓")}</p>;
+  if (!pv.pending_gift) return null;
+  async function send(e) {
+    e.preventDefault();
+    setBusy(true); setFb(null);
+    try {
+      await api("/me/phone/send-code", { method: "POST", body: { phone: phone.replace(/[ .\-()]/g, ""), lang: currentLang().code } });
+      setSent(true);
+      setFb({ ok: true, msg: t("Code envoyé par SMS. Il est valable 10 minutes.") });
+    } catch (err) { setFb({ ok: false, msg: err.message }); }
+    setBusy(false);
+  }
+  async function check(e) {
+    e.preventDefault();
+    setBusy(true); setFb(null);
+    try {
+      await api("/me/phone/verify", { method: "POST", body: { code } });
+      setUser(await api("/me"));
+      setFb({ ok: true, msg: t("Numéro vérifié : ton cadeau de parrainage est débloqué.") });
+    } catch (err) { setFb({ ok: false, msg: err.message }); }
+    setBusy(false);
+  }
+  return (
+    <form className="form" onSubmit={sent ? check : send}>
+      <p className="draft">{t("Vérifie ton numéro pour débloquer ton cadeau de parrainage.")}</p>
+      <label>{t("Téléphone (format international)")}<input type="tel" autoComplete="tel" value={phone} maxLength={30} placeholder="+33612345678" disabled={sent} onChange={(e) => setPhone(e.target.value)} /></label>
+      {sent && <label>{t("Code reçu par SMS")}<input className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} /></label>}
+      <button className="btn" disabled={busy || (sent ? code.length !== 6 : phone.length < 8)}>{sent ? t("Vérifier le code") : t("Recevoir un code par SMS")}</button>
+      {sent && <button type="button" className="linklike" onClick={() => { setSent(false); setCode(""); setFb(null); }}>{t("Changer de numéro")}</button>}
+      <Feedback f={fb} />
+    </form>
+  );
+}
+
+function Referral({ user, setUser }) {
   const [copied, setCopied] = useState(false);
   const link = `${location.origin}/?ref=${user.referral_code}`;
   const copy = async () => {
@@ -305,13 +348,15 @@ function Referral({ user }) {
     <div className="card">
       <span className="lbl">{t("Crédit de parrainage")}</span>
       <p className="big">{eur(user.credit || 0)}</p>
-      <p className="muted">{t("Déduit automatiquement de ta prochaine commande.")}{user.referred ? " " + t("(ton cadeau de bienvenue en fait partie)") : ""}</p>
+      <PhoneVerify user={user} setUser={setUser} />
+      <p className="muted">{t("Déduit automatiquement de ta prochaine commande.")}</p>
+      {user.referral_pending && <p className="draft">{t("Ton cadeau de parrainage est en attente : il sera débloqué quand ton parrain et toi aurez chacun payé une commande.")}</p>}
       <span className="lbl" style={{ marginTop: "1rem" }}>{t("Ton lien de parrainage")}</span>
       <button className="code" onClick={copy} aria-label={t("Copier le lien de parrainage")}>
         {user.referral_code} <small>{copied ? t("lien copié ✓") : t("copier le lien")}</small>
       </button>
       <p className="muted">
-        {t("Ton filleul reçoit 1,50 € de remise dès son inscription. Tu reçois 1,50 € quand il paie sa première commande.")}
+        {t("Quand ton filleul a payé sa première commande, vous recevez chacun 1,50 € de crédit. Il faut que vous ayez tous les deux déjà effectué un achat.")}
         {user.referral_count ? " " + tn(user.referral_count, "{n} filleul pour l'instant.", "{n} filleuls pour l'instant.") : ""}
       </p>
     </div>
@@ -366,7 +411,9 @@ function Notifications({ user, setUser }) {
   return (
     <div className="card form">
       <Toggle label={t("E-mails de commande, facture et installation")} hint={t("toujours envoyés, ils font partie de ta commande")} checked disabled onChange={() => {}} />
-      <Toggle label={t("SMS de confirmation de commande")} checked={user.notif_sms} onChange={(v) => set({ notif_sms: v })} />
+      {user.sms_notifications
+        ? <Toggle label={t("SMS de confirmation de commande")} checked={user.notif_sms} onChange={(v) => set({ notif_sms: v })} />
+        : <p className="muted">{t("Les SMS de confirmation sont désactivés pour le moment : tout est envoyé par e-mail.")}</p>}
       <Toggle label={t("Offres et actualités KozzGo par e-mail")} hint={t("désactivé tant que tu n'as pas accepté")} checked={user.marketing_optin} onChange={(v) => set({ marketing_optin: v })} />
       <Toggle label={t("Notifications push et alertes de consommation")} hint={t("bientôt disponible")} checked={false} disabled onChange={() => {}} />
       <Feedback f={fb} />
@@ -392,7 +439,7 @@ export default function Profile() {
           panel: <><Identity user={user} setUser={setUser} /><Security /></> },
         { key: "carte", icon: "💳", title: t("Carte de paiement"), sub: t("Gérée par Stripe, aucune carte conservée chez nous"), panel: <Cards /> },
         { key: "proches", icon: "👥", title: t("Mes proches"), sub: user.relatives_count ? tn(user.relatives_count, "{n} personne", "{n} personnes") : t("Aucun pour l'instant"), panel: <Relatives user={user} setUser={setUser} /> },
-        { key: "parrainage", icon: "🎁", title: t("Parrainage"), sub: t("{count} · {amount} de crédit", { count: tn(user.referral_count || 0, "{n} filleul", "{n} filleuls"), amount: eur(user.credit || 0) }), panel: <Referral user={user} /> },
+        { key: "parrainage", icon: "🎁", title: t("Parrainage"), sub: t("{count} · {amount} de crédit", { count: tn(user.referral_count || 0, "{n} filleul", "{n} filleuls"), amount: eur(user.credit || 0) }), panel: <Referral user={user} setUser={setUser} /> },
         { key: "cause", icon: "💛", title: t("Ma cause"), sub: user.cause_name ? t(user.cause_name) : t("Choisis ta cause préférée"), panel: <CausePicker user={user} setUser={setUser} /> },
         { key: "commandes", icon: "📦", title: t("Mes commandes"), sub: user.orders_count ? tn(user.orders_count, "{n} commande", "{n} commandes") : t("Aucune commande"), panel: <><Orders /><Invoices /></> },
       ],
@@ -400,7 +447,7 @@ export default function Profile() {
     {
       title: t("Réglages"),
       rows: [
-        { key: "notifs", icon: "🔔", title: t("Notifications"), sub: [t("E-mail de commande"), user.notif_sms && "SMS", user.marketing_optin && t("offres")].filter(Boolean).join(" · "), panel: <Notifications user={user} setUser={setUser} /> },
+        { key: "notifs", icon: "🔔", title: t("Notifications"), sub: [t("E-mail de commande"), user.sms_notifications && user.notif_sms && "SMS", user.marketing_optin && t("offres")].filter(Boolean).join(" · "), panel: <Notifications user={user} setUser={setUser} /> },
         { key: "langue", icon: "🌐", title: t("Langue"), sub: LANGS.find((l) => l.code === lang)?.name, panel: <div className="card form"><label>{t("Langue du site")}<LanguagePicker /></label></div> },
         { key: "devise", icon: "💱", title: t("Devise"), sub: currency, panel: (
           <div className="card form">

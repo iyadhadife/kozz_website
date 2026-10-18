@@ -54,6 +54,7 @@ S: dict[str, dict[str, str]] = {
         "sms_install": "Installe ton eSIM ici : {link} ",
         "sms_code": "Code : {code} ",
         "sms_invoice": "Facture envoyee par e-mail.",
+        "sms_verify": "KozzGo : ton code de verification est {code}. Valable {min} min. Ne le partage avec personne.",
         # code de vérification
         "code_subject": "{code} est ton code de vérification KozzGo",
         "code_text": "Ton code de vérification KozzGo : {code}\n\nIl est valable {min} minutes. Si tu n'as pas demandé la création d'un compte, ignore ce message : rien ne sera créé.",
@@ -102,6 +103,7 @@ S: dict[str, dict[str, str]] = {
         "sms_install": "Install your eSIM here: {link} ",
         "sms_code": "Code: {code} ",
         "sms_invoice": "Invoice sent by email.",
+        "sms_verify": "KozzGo: your verification code is {code}. Valid for {min} min. Do not share it with anyone.",
         "code_subject": "{code} is your KozzGo verification code",
         "code_text": "Your KozzGo verification code: {code}\n\nIt is valid for {min} minutes. If you did not ask to create an account, ignore this message: nothing will be created.",
         "code_html1": "Your KozzGo verification code:",

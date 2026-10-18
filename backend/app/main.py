@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from . import security as sec
 from .auth import router as auth_router
 from .legal import router as legal_router
+from .phone_verify import router as phone_router
 from .db import engine
 from . import fx, payments
 from .orders import OrderIn, create_order
@@ -14,6 +15,7 @@ app = FastAPI(title="Kozz API", root_path="")
 app.include_router(auth_router)
 app.include_router(payments.router)
 app.include_router(legal_router)
+app.include_router(phone_router)
 
 
 @app.on_event("startup")

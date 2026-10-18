@@ -1,17 +1,24 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import Section from "../components/Section.jsx";
 import PlanCards from "../components/PlanCards.jsx";
-import DestCard from "../components/DestCard.jsx";
-import Faq from "../components/Faq.jsx";
-import { DESTINATIONS, FAQ, eur, flag, fromPrice } from "../data.js";
+import PhoneCheck from "../components/PhoneCheck.jsx";
+import DataEstimator from "../components/DataEstimator.jsx";
+import { DESTINATIONS, TIERS, eur, flag, fromPrice } from "../data.js";
 import { motion } from "framer-motion";
 
 import { t } from "../i18n.js";
+
+const STEPS = [
+  ["Choisis ton forfait", "Compare les forfaits ci-dessus et ajoute le tien au panier."],
+  ["Paie en sécurité", "Paiement par carte via Stripe, dans ta devise."],
+  ["Reçois ton QR code", "Il arrive par e-mail (et par SMS si tu as donné ton numéro) dès le paiement confirmé."],
+  ["Active et connecte-toi", "Scanne le QR code dans les réglages de ton téléphone : la durée démarre à ta première connexion."],
+];
+
+// Fiche destination : en-tête avec atouts, forfaits détaillés, vérification du téléphone et estimation de data, 4 étapes.
 export default function Destination() {
   const { id } = useParams();
   const dest = DESTINATIONS.find((d) => d.id === id); if (!dest) return <Navigate to="/destinations" replace />;
-
-  const related = DESTINATIONS.filter((d) => d.zone === dest.zone && d.id !== dest.id).slice(0, 4);
 
   return (
     <>
@@ -26,6 +33,11 @@ export default function Destination() {
             <p className="muted">{t("À partir de {price} · installation en 1 minute · 10 % de la marge reversée à ta kozz", { price: eur(fromPrice(dest)) })}</p>
           </div>
         </motion.div>
+        <ul className="dest-badges">
+          <li>{t("{n} forfaits disponibles", { n: TIERS.length })}</li>
+          <li>{t("Activation instantanée")}</li>
+          <li>{t("Paiement sécurisé")}</li>
+        </ul>
       </div>
 
       <Section title={t("Choisis ton forfait")} subtitle={t("Le forfait démarre à ta première connexion sur place.")}>
@@ -34,15 +46,25 @@ export default function Destination() {
         </p>
       </Section>
 
-      {related.length > 0 && (
-        <Section title={`Aussi en ${dest.zone}`}>
-          <div className="dest-grid">{related.map((d) => <DestCard key={d.id} d={d} />)}</div>
-        </Section>
-      )}
-
-      <Section title={t("Questions fréquentes")}>
-        <Faq items={FAQ.filter((f) => f.cat === "Installation" || f.cat === "Achat")} />
+      <Section title={t("Avant d'acheter ton eSIM : {country}", { country: dest.name })}>
+        <div className="pre-grid">
+          <PhoneCheck />
+          <DataEstimator dest={dest} />
+        </div>
       </Section>
+
+      <Section title={t("Comment te connecter : {country}", { country: dest.name })} subtitle={t("Active ton eSIM en 4 étapes simples.")}>
+        <motion.ol className="steps" initial="hidden" whileInView="show" viewport={{ once: true }} variants={{ show: { transition: { staggerChildren: 0.12 } } }}>
+          {STEPS.map(([title, d], i) => (
+            <motion.li key={title} className="card" variants={{ hidden: { opacity: 0, y: 26 }, show: { opacity: 1, y: 0 } }}>
+              <span className="step-n">{i + 1}</span>
+              <h3>{t(title)}</h3>
+              <p className="muted">{t(d)}</p>
+            </motion.li>
+          ))}
+        </motion.ol>
+      </Section>
+
     </>
   );
 }

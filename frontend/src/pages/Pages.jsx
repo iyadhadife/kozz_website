@@ -1,3 +1,4 @@
+import GlobalImpact from "../components/GlobalImpact.jsx";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Section from "../components/Section.jsx";
@@ -11,24 +12,21 @@ import { t } from "../i18n.js";
 export const HowPage = () => <HowItWorks />;
 
 export function ImpactPage() {
-  const cats = [...new Set(CAUSES.map((c) => c.cat))]; return ( <>
+  return ( <>
       <Impact />
+      <GlobalImpact />
       <Section title={t("Les 12 causes")} subtitle={t("Tu choisis ta kozz à chaque achat. Les ONG partenaires sont en cours de finalisation.")}>
-        {cats.map((cat) => (
-          <div key={cat} className="cat-block">
-            <h3>{cat}</h3>
-            <div className="dest-grid">
-              {CAUSES.filter((c) => c.cat === cat).map((c) => (
-                <motion.div key={c.id} className="card dest" whileHover={{ y: -6 }}>
-                  <span className="dest-emoji">{c.emoji}</span>
-                  <span className="dest-name">{c.name}</span>
-                  <small className="muted">{c.unit}</small>
-                  {c.signature && <span className="pill">{t("Cause signature")}</span>}
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        ))}
+        <motion.div className="cause-grid" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }} variants={{ show: { transition: { staggerChildren: 0.05 } } }}>
+          {CAUSES.map((c) => (
+            <motion.div key={c.id} className="card cause-card" variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } }} whileHover={{ y: -5 }}>
+              <small className="cause-cat">{c.cat}</small>
+              <span className="dest-emoji">{c.emoji}</span>
+              <span className="dest-name">{c.name}</span>
+              <small className="muted">{c.unit}</small>
+              {c.signature && <span className="pill">{t("Cause signature")}</span>}
+            </motion.div>
+          ))}
+        </motion.div>
       </Section>
     </>
   );

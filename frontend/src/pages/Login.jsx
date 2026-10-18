@@ -1,3 +1,4 @@
+import Logo from "../components/Logo.jsx";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -101,7 +102,7 @@ export default function Login() {
     return (
       <div className="page auth">
         <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-          <img src="/logo.jpg" alt={t("KozzGo")} className="auth-logo" />
+          <Logo className="auth-logo" />
           <h2>{t("Vérifie ton e-mail")}</h2>
           <p className="muted">{t("Nous avons envoyé un code à 6 chiffres à {email}. Il est valable 15 minutes. Pense à regarder tes indésirables.", { email: pending })}</p>
           <form className="form" onSubmit={verify} noValidate>
@@ -137,8 +138,8 @@ export default function Login() {
   return (
     <div className="page auth">
       <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-        {ref && isRegister && <p className="ref-banner" role="note">{tx("🎁 Code de parrainage {code} : 1,50 € offerts sur ta prochaine commande après ton inscription.", { code: <strong>{ref}</strong> })}</p>}
-        <img src="/logo.jpg" alt={t("KozzGo")} className="auth-logo" />
+        {ref && isRegister && <p className="ref-banner" role="note">{tx("🎁 Code de parrainage {code} : après ta première commande, toi et ton parrain recevez chacun 1,50 € de crédit.", { code: <strong>{ref}</strong> })}</p>}
+        <Logo className="auth-logo" />
         <div className="seg">
           {[["login", "Connexion"], ["register", "Créer un compte"]].map(([k, l]) => (
             <button key={k} type="button" className={mode === k ? "on" : ""} onClick={() => setMode(k)}>

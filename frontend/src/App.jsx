@@ -1,8 +1,10 @@
+import Logo from "./components/Logo.jsx";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import TabBar from "./components/TabBar.jsx";
-import QrIntro, { introSeen } from "./components/QrIntro.jsx";
+import { setIntroActive } from "./introState.js";
+import WorldIntro, { introSeen } from "./components/WorldIntro.jsx";
 import TextMotion from "./components/TextMotion.jsx";
 import ScrollProgress from "./components/ScrollProgress.jsx";
 import { StoreProvider, useStore } from "./store.jsx";
@@ -16,6 +18,7 @@ import Destination from "./pages/Destination.jsx";
 import { CheckoutCanceled, CheckoutSuccess } from "./pages/Checkout.jsx";
 import { Cgv, Confidentialite, MentionsLegales, Remboursement, Retractation } from "./pages/Legal.jsx";
 import Login from "./pages/Login.jsx";
+import Compatible from "./pages/Compatible.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog, localizeData, setCurrencyState } from "./data.js";
 import { initialLang, loadLang, t } from "./i18n.js";
@@ -62,17 +65,17 @@ function PageTransition({ children }) {
 export default function App() {
   const location = useLocation();
   const [ready, setReady] = useState(false);
-  const [intro, setIntro] = useState(() => !introSeen() && !matchMedia("(prefers-reduced-motion: reduce)").matches);
-  const endIntro = useCallback(() => setIntro(false), []);
+  const [intro, setIntro] = useState(() => { const v = !introSeen() && !matchMedia("(prefers-reduced-motion: reduce)").matches; setIntroActive(v); return v; });
+  const endIntro = useCallback(() => { setIntroActive(false); setIntro(false); }, []);
   useEffect(() => {
     Promise.all([loadCatalog(), loadLang(initialLang()).then((l) => setCurrencyState({ locale: l.locale }))]).then(() => localizeData()).finally(() => setReady(true));
   }, []);
-  if (!ready) return <div className="splash"><img src="/logo.jpg" alt={t("KozzGo")} /></div>; return ( <StoreProvider>
+  if (!ready) return <div className="splash"><Logo height={64} /></div>; return ( <StoreProvider>
       <ReferralLanding />
       <ScrollManager />
       <MotionConfig reducedMotion="user">
       <AnimatePresence>
-        {intro && <motion.div key="intro" className="qr-intro-wrap" exit={{ opacity: 0 }} transition={{ duration: 0.45 }}><QrIntro onDone={endIntro} /></motion.div>}
+        {intro && <motion.div key="intro" className="qr-intro-wrap" exit={{ opacity: 0 }} transition={{ duration: 0.45 }}><WorldIntro onDone={endIntro} /></motion.div>}
       </AnimatePresence>
       <Shell>
       <ScrollProgress />
@@ -91,6 +94,7 @@ export default function App() {
           <Route path="/connexion" element={<Login />} />
           <Route path="/profil" element={<Profile />} />
           <Route path="/destinations" element={<Destinations />} />
+          <Route path="/telephones-compatibles" element={<Compatible />} />
           <Route path="/destinations/:id" element={<Destination />} />
           <Route path="/kozz-monde" element={<div className="page"><MondePage /></div>} />
           <Route path="/comment-ca-marche" element={<div className="page"><HowPage /></div>} />

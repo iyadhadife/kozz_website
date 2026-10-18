@@ -108,11 +108,21 @@ def _profile(c, cust) -> dict:
         "cause_id": cust["cause_id"],
         "cause_name": c.execute(text("SELECT name FROM causes WHERE id=:i"), {"i": cust["cause_id"]}).scalar() if cust["cause_id"] else None,
         "notif_sms": bool(cust["notif_sms"]),
+        "sms_notifications": notify.sms_notifications_enabled(),
+        "phone_verification": {
+            "enabled": referral.phone_required(),
+            "verified": cust["phone_verified_at"] is not None,
+            # cadeau de parrainage encore bloqué : le filleul doit vérifier son numéro
+            "pending_gift": bool(referral.phone_required() and cust["referred_by"] and cust["phone_verified_at"] is None),
+        },
         "marketing_optin": bool(cust["marketing_optin"]),
         "relatives_count": c.execute(text("SELECT COUNT(*) FROM relatives WHERE customer_id=:i"), {"i": cust["id"]}).scalar(),
         "orders_count": c.execute(text("SELECT COUNT(*) FROM orders WHERE customer_id=:i AND status IN ('paid','provisioned','refunded')"), {"i": cust["id"]}).scalar(),
         "credit": float(referral.balance(c, cust["id"])),
         "referred": bool(cust["referred_by"]),
+        # filleul dont le cadeau n'est pas encore débloqué (achat du filleul et du parrain, numéro vérifié si A2F)
+        "referral_pending": bool(cust["referred_by"]) and not c.execute(
+            text("SELECT 1 FROM referral_credits WHERE customer_id=:i AND kind='referee' LIMIT 1"), {"i": cust["id"]}).first(),
         "referral_count": c.execute(text("SELECT COUNT(*) FROM customers WHERE referred_by=:i"), {"i": cust["id"]}).scalar(),
         "status": {
             "key": key,
@@ -335,6 +345,8 @@ def update_me(body: ProfileIn, cust=Depends(sec.require_customer)):
     if "phone" in sent:
         sets.append("phone = :ph")
         params["ph"] = _phone(body.phone)
+        if params["ph"] != cust["phone_verified_number"]:  # un autre numéro doit être vérifié à nouveau
+            sets.append("phone_verified_at = NULL, phone_verified_number = NULL")
     if "notif_sms" in sent and body.notif_sms is not None:
         sets.append("notif_sms = :ns")
         params["ns"] = body.notif_sms

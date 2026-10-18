@@ -78,6 +78,11 @@ def send_email(to: str, subject: str, text_body: str, html_body: str,
         server.send_message(msg)
 
 
+def sms_notifications_enabled() -> bool:
+    """SMS_NOTIFICATIONS_ENABLED=false (défaut) : les confirmations de commande partent uniquement par e-mail."""
+    return _env("SMS_NOTIFICATIONS_ENABLED").lower() in ("true", "1", "yes", "on")
+
+
 def send_sms(to: str, body: str) -> None:
     sid, token, sender = _env("TWILIO_ACCOUNT_SID"), _env("TWILIO_AUTH_TOKEN"), _env("TWILIO_FROM")
     if not (sid and token and sender):
@@ -246,7 +251,9 @@ def notify_order(order_id: int) -> dict:
         phone = (o["customer_phone"] or "").replace(" ", "")
         with engine.connect() as cn:  # préférence du compte (invité : SMS autorisé)
             sms_ok = cn.execute(text("SELECT COALESCE(c.notif_sms, 1) FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.id=:o"), {"o": order_id}).scalar()
-        if not phone or not sms_ok:
+        if not sms_notifications_enabled():
+            result["sms"] = "skipped"  # confirmations par e-mail uniquement (SMS_NOTIFICATIONS_ENABLED=false)
+        elif not phone or not sms_ok:
             result["sms"] = "skipped"
         else:
             try:

@@ -1,9 +1,10 @@
+import Logo from "./Logo.jsx";
 import { Link } from "react-router-dom";
 
 import { t } from "../i18n.js";
 const COLS = [
   ["Nos eSIM", [["/destinations", "Toutes les destinations"], ["/destinations?zone=Maghreb", "Maghreb"], ["/destinations?zone=Europe", "Europe"], ["/destinations?zone=Asie", "Asie"], ["/kozz-monde", "Kozz Monde"]]],
-  ["Aide", [["/aide", "Centre d'aide"], ["/comment-ca-marche", "Installer mon eSIM"], ["/aide", "Compatibilité"]]],
+  ["Aide", [["/aide", "Centre d'aide"], ["/comment-ca-marche", "Installer mon eSIM"], ["/telephones-compatibles", "Compatibilité"]]],
   ["KozzGo", [["/profil", "Mon compte"], ["/comment-ca-marche", "Comment ça marche"], ["/impact", "Impact & causes"], ["/", "Accueil"]]],
 ];
 
@@ -12,7 +13,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="footer-top">
         <div className="footer-brand">
-          <img src="/logo.jpg" alt={t("KozzGo")} />
+          <Logo />
           <p className="muted">{t("Ta data voyage. Ton impact reste.")}</p>
         </div>
         {COLS.map(([title, links]) => (

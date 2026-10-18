@@ -101,8 +101,8 @@ export function Cgv() {
       <p>L'abonnement est mensuel et se renouvelle automatiquement. Tu peux le résilier à tout moment, en ligne et sans frais ; la résiliation prend effet à la fin de la période en cours.</p>
       <h2>7 bis. Parrainage</h2>
       <p>
-        Un client peut parrainer une personne qui n'a pas encore de compte en lui transmettant son lien. Le filleul reçoit 1,50 € de remise sur sa prochaine
-        commande dès la création de son compte ; le parrain reçoit 1,50 € de remise quand son filleul a payé sa première commande. Les remises sont déduites
+        Un client peut parrainer une personne qui n'a pas encore de compte en lui transmettant son lien. Le filleul et le parrain reçoivent chacun 1,50 € de remise
+        sur une commande ultérieure, une fois que le filleul a payé sa première commande et à condition que le parrain ait lui-même déjà payé au moins une commande. Les remises sont déduites
         automatiquement du prix, ne sont ni remboursables ni convertibles en argent, ne sont pas cumulables avec un montant à payer inférieur à 0,50 € et ne
         valent que pour un parrainage entre deux personnes distinctes. KozzGo peut refuser ou annuler les remises obtenues par un usage abusif (faux comptes).
       </p>
