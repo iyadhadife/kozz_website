@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../api.js";
-import { CAUSES, donation, eur, fmtNum, impactUnits } from "../data.js";
+import { CAUSES, FX_STATE, donation, eur, eurLine, fmtMinor, fmtNum, impactUnits, itemLabel, minorOf } from "../data.js";
 import { useStore } from "../store.jsx";
 
+import { currentLang, currentLocale, t, tx } from "../i18n.js";
 export default function Cart() {
-  const { cart, remove, open, setOpen, user } = useStore();
+  const { cart, remove, open, setOpen, user, currency, fx } = useStore();
   const [causeId, setCauseId] = useState("tsf");
+  useEffect(() => { if (user?.cause_id) setCauseId(user.cause_id); }, [user?.cause_id]);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -21,6 +23,10 @@ export default function Cart() {
   const room = Math.max(0, total - 0.5); // Stripe exige au moins 0,50 € à payer
   const credit = user ? Math.floor(Math.min(user.credit || 0, room) / 1.5) * 1.5 : 0; // crédits de 1,50 €, non fractionnés
   const net = total - credit;
+  const hasSub = cart.some((i) => i.kind === "subscription");
+  const shown = hasSub ? "EUR" : currency; // un abonnement reste en euros
+  const grossMinor = cart.reduce((s, i) => s + minorOf(i.price) * i.qty, 0);
+  const netText = shown === currency ? fmtMinor(grossMinor - (credit ? minorOf(credit) : 0)) : eur(net);
   const emailOk = (!!user || /^\S+@\S+\.\S+$/.test(email)) && acceptTerms && waive;
 
   const pay = async () => {
@@ -30,49 +36,46 @@ export default function Cart() {
       // Le serveur recalcule les prix depuis la base, enregistre la commande puis ouvre une session Stripe Checkout
       const o = await api("/orders", {
         method: "POST",
-        body: { email: user ? undefined : email, cause_id: causeId, accept_terms: acceptTerms, waive_withdrawal: waive, items: cart.map(({ uid, label, price, ...ref }) => ref) },
+        body: { email: user ? undefined : email, cause_id: causeId, accept_terms: acceptTerms, waive_withdrawal: waive, lang: currentLang().code, currency: cart.some((i) => i.kind === "subscription") ? "EUR" : currency, items: cart.map(({ uid, label, price, ...ref }) => ref) },
       });
       window.location.assign(o.checkout_url); // page de paiement hébergée par Stripe
     } catch (e) {
-      setError(e.message || "Impossible de lancer le paiement.");
+      setError(e.message || t("Impossible de lancer le paiement."));
       setBusy(false);
     }
   };
-  const close = () => setOpen(false);
-
-  return (
-    <AnimatePresence>
+  const close = () => setOpen(false); return ( <AnimatePresence>
       {open && (
         <>
           <motion.div className="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.aside
             className="drawer"
-            initial={{ x: "100%" }}
+            initial={{ x: document.documentElement.dir === "rtl" ? "-100%" : "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: document.documentElement.dir === "rtl" ? "-100%" : "100%" }}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
           >
-            <button className="close" onClick={close} aria-label="Fermer">✕</button>
+            <button className="close" onClick={close} aria-label={t("Fermer")}>✕</button>
 
               <>
-                <h3>Ton panier</h3>
+                <h3>{t("Ton panier")}</h3>
                 {cart.length === 0 ? (
-                  <p className="muted">Ton panier est vide.</p>
+                  <p className="muted">{t("Ton panier est vide.")}</p>
                 ) : (
                   <>
                     <ul className="lines">
                       <AnimatePresence initial={false}>
                         {cart.map((i) => (
                           <motion.li key={i.uid} layout initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, height: 0 }}>
-                            <span>{i.qty > 1 && `${i.qty} × `}{i.label}</span>
-                            <strong>{eur(i.price * i.qty)}</strong>
-                            <button onClick={() => remove(i.uid)} aria-label="Retirer">✕</button>
+                            <span>{i.qty > 1 && `${i.qty} × `}{itemLabel(i)}</span>
+                            <strong>{eurLine(i.price, i.qty)}</strong>
+                            <button onClick={() => remove(i.uid)} aria-label={t("Retirer")}>✕</button>
                           </motion.li>
                         ))}
                       </AnimatePresence>
                     </ul>
 
-                    <span className="lbl">Choisis ta kozz</span>
+                    <span className="lbl">{t("Choisis ta kozz")}</span>
                     <div className="causes">
                       {CAUSES.map((c) => (
                         <button key={c.id} className={`cause ${c.id === causeId ? "on" : ""}`} onClick={() => setCauseId(c.id)} title={c.cat}>
@@ -82,41 +85,47 @@ export default function Cart() {
                       ))}
                     </div>
                     <motion.p key={causeId + units} className="impact-line" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                      {cause.emoji} Cet achat financera ≈ <strong>{fmtNum(units)} {cause.unit}</strong>
+                      {cause.emoji} {t("Cet achat financera ≈")} <strong>{fmtNum(units)} {cause.unit}</strong>
                     </motion.p>
 
                     {user ? (
-                      <p className="muted">Commande rattachée à ton compte ({user.email}).</p>
+                      <p className="muted">{t("Commande rattachée à ton compte ({email}).", { email: user.email })}</p>
                     ) : (
                       <>
-                        <label>
-                          E-mail (facture + installation)
-                          <input type="email" placeholder="toi@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        <label>{t("E-mail (facture + installation)")}{" "}<input type="email" placeholder={t("toi@exemple.com")} value={email} onChange={(e) => setEmail(e.target.value)} />
                         </label>
-                        <p className="muted"><Link to="/connexion" onClick={() => setOpen(false)} className="accent">Connecte-toi</Link> pour retrouver tes commandes.</p>
+                        <p className="muted">{tx("{login} pour retrouver tes commandes.", {
+                          login: <Link to="/connexion" onClick={() => setOpen(false)} className="accent">{t("Connecte-toi")}</Link>,
+                        })}</p>
                       </>
                     )}
 
                     <label className="check">
                       <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
-                      <span>
-                        J'ai lu et j'accepte les <Link to="/cgv" target="_blank" className="accent">conditions générales de vente</Link> et la{" "}
-                        <Link to="/confidentialite" target="_blank" className="accent">politique de confidentialité</Link>.
-                      </span>
+                      <span>{tx("J'ai lu et j'accepte les {cgv} et la {privacy}.", {
+                        cgv: <Link to="/cgv" target="_blank" className="accent">{t("conditions générales de vente")}</Link>,
+                        privacy: <Link to="/confidentialite" target="_blank" className="accent">{t("politique de confidentialité")}</Link>,
+                      })}</span>
                     </label>
                     <label className="check">
                       <input type="checkbox" checked={waive} onChange={(e) => setWaive(e.target.checked)} />
-                      <span>
-                        Je demande l'exécution immédiate de ma commande et je reconnais que, une fois l'eSIM fournie, je perds mon droit de
-                        rétractation (<Link to="/retractation" target="_blank" className="accent">en savoir plus</Link>).
-                      </span>
+                      <span>{tx("Je demande l'exécution immédiate de ma commande et je reconnais que, une fois l'eSIM fournie, je perds mon droit de rétractation ({more}).", {
+                        more: <Link to="/retractation" target="_blank" className="accent">{t("en savoir plus")}</Link>,
+                      })}</span>
                     </label>
 
-                    {credit > 0 && <div className="totalrow"><span>🎁 Crédit parrainage</span><strong>−{eur(credit)}</strong></div>}
-                    <div className="totalrow"><span>Total TTC</span><strong>{eur(net)}</strong></div>
+                    {credit > 0 && <div className="totalrow"><span>{t("🎁 Crédit parrainage")}</span><strong>−{eur(credit)}</strong></div>}
+                    {currency !== "EUR" && (
+                      <p className="muted note">
+                        {hasSub
+                          ? t("Un abonnement se paie toujours en euros.")
+                          : t("Tu seras débité en {cur} au taux du jour, frais de conversion inclus (1 € = {rate} {cur}).", { cur: currency, rate: FX_STATE.rate.toLocaleString(currentLocale(), { maximumFractionDigits: 4 }) })}
+                      </p>
+                    )}
+                    <div className="totalrow"><span>{t("Total TTC")}</span><strong>{netText}</strong></div>
                     {error && <p className="error" role="alert">{error}</p>}
-                    <button className="btn" disabled={!emailOk || busy} onClick={pay}>{busy ? "Redirection vers le paiement…" : `Payer ${eur(net)}`}</button>
-                    <p className="muted secure">🔒 Paiement sécurisé par Stripe. Tes données de carte ne transitent jamais par KozzGo.</p>
+                    <button className="btn" disabled={!emailOk || busy} onClick={pay}>{busy ? t("Redirection vers le paiement…") : t("Payer {amount}", { amount: netText })}</button>
+                    <p className="muted secure">{t("🔒 Paiement sécurisé par Stripe. Tes données de carte ne transitent jamais par KozzGo.")}</p>
                   </>
                 )}
               </>

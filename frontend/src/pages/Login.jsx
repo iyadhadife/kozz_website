@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStore } from "../store.jsx";
 
+import { t, tx } from "../i18n.js";
 const MIN = 10;
 
 export default function Login() {
@@ -90,7 +91,7 @@ export default function Login() {
     try {
       const r = await resendRegister(pending);
       setWait(r?.resend_in ?? 60);
-      setSentInfo("Nouveau code envoyé.");
+      setSentInfo(t("Nouveau code envoyé."));
     } catch (err) {
       setError(err.message);
     }
@@ -100,13 +101,11 @@ export default function Login() {
     return (
       <div className="page auth">
         <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-          <img src="/logo.jpg" alt="KozzGo" className="auth-logo" />
-          <h2>Vérifie ton e-mail</h2>
-          <p className="muted">Nous avons envoyé un code à 6 chiffres à <strong>{pending}</strong>. Il est valable 15 minutes. Pense à regarder tes indésirables.</p>
+          <img src="/logo.jpg" alt={t("KozzGo")} className="auth-logo" />
+          <h2>{t("Vérifie ton e-mail")}</h2>
+          <p className="muted">{t("Nous avons envoyé un code à 6 chiffres à {email}. Il est valable 15 minutes. Pense à regarder tes indésirables.", { email: pending })}</p>
           <form className="form" onSubmit={verify} noValidate>
-            <label>
-              Code de vérification
-              <input
+            <label>{t("Code de vérification")}{" "}<input
                 className="code-input"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -115,20 +114,20 @@ export default function Login() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="000000"
-                aria-label="Code à 6 chiffres"
+                aria-label={t("Code à 6 chiffres")}
               />
             </label>
             {error && <p className="error" role="alert">{error}</p>}
             {sentInfo && !error && <p className="muted" role="status">{sentInfo}</p>}
-            <button className="btn" disabled={code.length !== 6 || busy}>{busy ? "…" : "Valider et créer mon compte"}</button>
+            <button className="btn" disabled={code.length !== 6 || busy}>{busy ? "…" : t("Valider et créer mon compte")}</button>
           </form>
           <p className="muted note">
-            Pas reçu ?{" "}
+            {t("Pas reçu ?")}{" "}
             <button type="button" className="linklike" onClick={resend} disabled={wait > 0}>
-              {wait > 0 ? `Renvoyer le code dans ${wait} s` : "Renvoyer le code"}
+              {wait > 0 ? t("Renvoyer le code dans {n} s", { n: wait }) : t("Renvoyer le code")}
             </button>
             {" · "}
-            <button type="button" className="linklike" onClick={() => { setPending(null); setError(""); }}>Changer d'e-mail</button>
+            <button type="button" className="linklike" onClick={() => { setPending(null); setError(""); }}>{t("Changer d'e-mail")}</button>
           </p>
         </motion.div>
       </div>
@@ -138,13 +137,13 @@ export default function Login() {
   return (
     <div className="page auth">
       <motion.div className="card auth-card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-        {ref && isRegister && <p className="ref-banner" role="note">🎁 Code de parrainage <strong>{ref}</strong> : 1,50 € offerts sur ta prochaine commande après ton inscription.</p>}
-        <img src="/logo.jpg" alt="KozzGo" className="auth-logo" />
+        {ref && isRegister && <p className="ref-banner" role="note">{tx("🎁 Code de parrainage {code} : 1,50 € offerts sur ta prochaine commande après ton inscription.", { code: <strong>{ref}</strong> })}</p>}
+        <img src="/logo.jpg" alt={t("KozzGo")} className="auth-logo" />
         <div className="seg">
           {[["login", "Connexion"], ["register", "Créer un compte"]].map(([k, l]) => (
             <button key={k} type="button" className={mode === k ? "on" : ""} onClick={() => setMode(k)}>
               {mode === k && <motion.span layoutId="authseg" className="seg-bg" />}
-              <span>{l}</span>
+              <span>{t(l)}</span>
             </button>
           ))}
         </div>
@@ -152,21 +151,15 @@ export default function Login() {
         <form className="form" onSubmit={submit} noValidate>
           <AnimatePresence initial={false}>
             {isRegister && (
-              <motion.label initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
-                Prénom (facultatif)
-                <input autoComplete="given-name" value={firstName} maxLength={100} onChange={(e) => setFirstName(e.target.value)} />
+              <motion.label initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>{t("Prénom (facultatif)")}{" "}<input autoComplete="given-name" value={firstName} maxLength={100} onChange={(e) => setFirstName(e.target.value)} />
               </motion.label>
             )}
           </AnimatePresence>
 
-          <label>
-            E-mail
-            <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@exemple.com" />
+          <label>{t("E-mail")}{" "}<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("toi@exemple.com")} />
           </label>
 
-          <label>
-            Mot de passe
-            <span className="pwd">
+          <label>{t("Mot de passe")} <span className="pwd">
               <input
                 type={show ? "text" : "password"}
                 autoComplete={isRegister ? "new-password" : "current-password"}
@@ -175,34 +168,30 @@ export default function Login() {
                 maxLength={128}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}>
+              <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? t("Masquer le mot de passe") : t("Afficher le mot de passe")}>
                 {show ? "🙈" : "👁️"}
               </button>
             </span>
             {isRegister && (
               <small className={tooShort ? "error" : "muted"}>
-                {MIN} caractères minimum. Une phrase de passe longue est idéale.
+                {t("{n} caractères minimum. Une phrase de passe longue est idéale.", { n: MIN })}
               </small>
             )}
           </label>
 
           {isRegister && (
-            <label>
-              Confirmer le mot de passe
-              <input type={show ? "text" : "password"} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-              {mismatch && <small className="error">Les mots de passe ne correspondent pas.</small>}
+            <label>{t("Confirmer le mot de passe")} <input type={show ? "text" : "password"} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              {mismatch && <small className="error">{t("Les mots de passe ne correspondent pas.")}</small>}
             </label>
           )}
 
           {error && <p className="error" role="alert">{error}</p>}
           <button className="btn" disabled={!valid || busy}>
-            {busy ? "…" : isRegister ? "Recevoir mon code" : "Me connecter"}
+            {busy ? "…" : isRegister ? t("Recevoir mon code") : t("Me connecter")}
           </button>
         </form>
 
-        <p className="muted note">
-          Ton mot de passe est protégé par un hachage Argon2 : nous ne le stockons jamais en clair et ne pouvons pas le lire.
-        </p>
+        <p className="muted note">{t("Ton mot de passe est protégé par un hachage Argon2 : nous ne le stockons jamais en clair et ne pouvons pas le lire.")}{" "}</p>
       </motion.div>
     </div>
   );

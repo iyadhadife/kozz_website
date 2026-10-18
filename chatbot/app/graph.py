@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 
-SYSTEM_PROMPT = "Tu es l'assistant du site Kozz. Réponds de façon concise et utile."
+SYSTEM_PROMPT = "Tu es l'assistant du site Kozz. Réponds de façon concise et utile, dans la langue utilisée par la personne qui t'écrit."
 
 llm = ChatAnthropic(model=os.getenv("CHATBOT_MODEL", "claude-sonnet-5-5"))
 

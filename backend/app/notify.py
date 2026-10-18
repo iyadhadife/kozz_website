@@ -17,7 +17,9 @@ from html import escape
 import httpx
 from sqlalchemy import text
 
-from . import legal
+from decimal import Decimal
+
+from . import legal, texts
 from .db import engine
 from .fulfillment import esims_for_order
 from .invoicing import get_pdf
@@ -102,65 +104,77 @@ def _strip_accents(s: str) -> str:
 
 
 def build_email(o: dict, esims: list[dict], invoice_no: str | None) -> tuple[str, str, str, list]:
+    lang = o.get("lang") or "fr"
+    L = lambda k, **kw: texts.T(lang, k, **kw)  # noqa: E731
+    money = lambda x: texts.money(lang, x)  # noqa: E731
     s = legal.seller()
     name = o["name"] or ""
     link = f"{SITE_URL}/commande/succes?session_id={o['session_id']}"
     waiver = o["withdrawal_waiver_at"].strftime("%d/%m/%Y") if o["withdrawal_waiver_at"] else None
-    subject = f"Ta commande KozzGo n°{o['id']} : {'facture et installation' if esims else 'facture'}"
+    subject = L("subject_full" if esims else "subject_inv", id=o["id"])
 
-    fr = lambda x: f"{x:.2f}".replace(".", ",")  # noqa: E731 : 12.5 -> "12,50"
     qty = lambda i: f"{i['qty']} × " if i["qty"] > 1 else ""  # noqa: E731
-    recap = [f"- {qty(i)}{i['label']} : {fr(i['qty'] * i['unit_price'])} €" for i in o["items"]]
-    t = [f"Bonjour{' ' + name if name else ''},", "", f"Merci pour ta commande n°{o['id']} ! Paiement de {fr(o['total'])} € TTC confirmé.", "", *recap, ""]
-    h = [f"<p>Bonjour{' ' + escape(name) if name else ''},</p>",
-         f"<p>Merci pour ta commande n°{o['id']} ! Paiement de <strong>{fr(o['total'])} € TTC</strong> confirmé.</p>",
+    recap = [f"- {qty(i)}{i['label']} : {money(i['qty'] * i['unit_price'])}" for i in o["items"]]
+    charged = ""
+    if o.get("currency") and o["currency"] != "EUR" and o.get("charge_amount_minor") is not None:
+        from . import fx
+
+        amount = fx.from_minor(o["charge_amount_minor"], o["currency"])
+        charged = L("charged", amount=f"{amount:,.{fx.CURRENCIES[o['currency']][0]}f}", cur=o["currency"], rate=f"{Decimal(o['fx_rate']):.4f}")
+    t = [L("hello", name=" " + name if name else ""), "", L("thanks", id=o["id"], total=money(o["total"])), "", *recap, ""]
+    if charged:
+        t += [charged, ""]
+    h = [f"<p>{escape(L('hello', name=' ' + name if name else ''))}</p>",
+         f"<p>{escape(L('thanks', id=o['id'], total=money(o['total'])))}</p>",
          "<ul>" + "".join(f"<li>{escape(qty(i))}{escape(i['label'])}</li>" for i in o["items"]) + "</ul>"]
+    if charged:
+        h.append(f"<p>{escape(charged)}</p>")
     inline = []
     for n, e in enumerate(esims):
         if e["status"] == "failed" or (not e["qr_png"] and not e["activation_code"]):
-            t += [f"eSIM « {e['label']} » : nous finalisons sa préparation et te l'envoyons très vite. Réponds à cet e-mail si besoin.", ""]
-            h.append(f"<p><strong>{escape(e['label'])}</strong> : nous finalisons sa préparation et te l'envoyons très vite. Réponds à cet e-mail si besoin.</p>")
+            t += [L("esim_pending", label=e["label"]), ""]
+            h.append(f"<p>{escape(L('esim_pending', label=e['label']))}</p>")
             continue
-        t += [f"Installer ton eSIM « {e['label']} » :",
-              "1) Connecte-toi au Wi-Fi. 2) Réglages > Données mobiles > Ajouter une eSIM. 3) Scanne le QR code (ou saisis le code d'activation).",
-              f"Code d'activation : {e['activation_code']}" if e["activation_code"] else "", f"Installation iPhone : {e['ios_tap_link']}" if e["ios_tap_link"] else "",
-              f"Retrouve aussi ton QR code ici : {link}", ""]
-        h.append(f"<h3>{escape(e['label'])}</h3><ol><li>Connecte-toi au Wi-Fi.</li><li>Réglages &gt; Données mobiles &gt; Ajouter une eSIM.</li><li>Scanne ce QR code. Active la ligne à ton arrivée.</li></ol>")
+        t += [L("install_title", label=e["label"]), L("install_steps"),
+              L("activation", code=e["activation_code"]) if e["activation_code"] else "", L("iphone", link=e["ios_tap_link"]) if e["ios_tap_link"] else "",
+              L("find_qr", link=link), ""]
+        h.append(f"<h3>{escape(e['label'])}</h3><ol>{L('html_steps')}</ol>")
         if e["qr_png"]:
             cid = f"qr{n}"
             inline.append((cid, base64.b64decode(e["qr_png"])))
-            h.append(f'<p><img src="cid:{cid}" alt="QR code d\'installation" width="200" height="200" style="background:#fff;padding:8px"></p>')
+            h.append(f'<p><img src="cid:{cid}" alt="{escape(L("qr_alt"))}" width="200" height="200" style="background:#fff;padding:8px"></p>')
         if e["activation_code"]:
-            h.append(f"<p>Code d'activation manuel : <code>{escape(e['activation_code'])}</code></p>")
+            h.append(f"<p>{escape(L('manual_code'))} <code>{escape(e['activation_code'])}</code></p>")
         if e["ios_tap_link"] and e["ios_tap_link"].startswith("https://"):
-            h.append(f'<p><a href="{escape(e["ios_tap_link"])}">Installer sur iPhone</a></p>')
-        h.append("<p><small>Ne partage pas ce QR code : il ne fonctionne qu'une fois.</small></p>")
+            h.append(f'<p><a href="{escape(e["ios_tap_link"])}">{escape(L("iphone_link"))}</a></p>')
+        h.append(f"<p><small>{escape(L('qr_warn'))}</small></p>")
     if invoice_no:
-        t += [f"Ta facture {invoice_no} est jointe à cet e-mail (PDF).", ""]
-        h.append(f"<p>Ta facture <strong>{escape(invoice_no)}</strong> est jointe à cet e-mail (PDF).</p>")
-    t += [f"Ton impact : {o['cause']} (10 % de notre marge sur cet achat).", ""]
-    h.append(f"<p>Ton impact : <strong>{escape(o['cause'])}</strong> (10 % de notre marge sur cet achat).</p>")
+        t += [L("inv_attached", no=invoice_no), ""]
+        h.append(f"<p>{escape(L('inv_attached', no=invoice_no))}</p>")
+    t += [L("impact", cause=o["cause"]), ""]
+    h.append(f"<p>{escape(L('impact', cause=o['cause']))}</p>")
 
-    legal_t = ["Informations légales",
-               f"Droit de rétractation : {'tu as demandé l' + chr(39) + 'exécution immédiate de ton achat le ' + waiver + ' et reconnu perdre ton droit de rétractation une fois le service fourni (art. L221-28 du Code de la consommation).' if waiver else 'voir nos conditions générales.'}",
-               "Garantie légale de conformité : elle s'applique à tes achats (Code de la consommation).",
-               f"Conditions générales : {SITE_URL}/cgv · Mentions légales : {SITE_URL}/mentions-legales · Confidentialité : {SITE_URL}/confidentialite",
-               f"Médiation de la consommation : {s['mediator']}" if s["mediator"] else "",
-               f"{s['name']} · {s['legal_form']} · SIREN {s['siren']} · {s['address']}" if s["name"] else "", f"Contact : {s['email']}" if s["email"] else ""]
+    legal_t = [L("legal_title"),
+               L("withdrawal_waived", date=waiver) if waiver else L("withdrawal_see"),
+               L("warranty"),
+               L("links", cgv=f"{SITE_URL}/cgv", ml=f"{SITE_URL}/mentions-legales", conf=f"{SITE_URL}/confidentialite"),
+               L("mediator", m=s["mediator"]) if s["mediator"] else "",
+               f"{s['name']} · {s['legal_form']} · SIREN {s['siren']} · {s['address']}" if s["name"] else "", L("contact", e=s["email"]) if s["email"] else ""]
     t += [l for l in legal_t if l]
     h.append("<hr><p><small>" + "<br>".join(escape(l) for l in legal_t if l) + "</small></p>")
     return subject, "\n".join(t), "<html><body style='font-family:Arial,sans-serif;max-width:620px'>" + "".join(h) + "</body></html>", inline
 
 
 def build_sms(o: dict, esims: list[dict]) -> str:
+    lang = o.get("lang") or "fr"
     link = f"{SITE_URL}/commande/succes?session_id={o['session_id']}"
-    body = f"KozzGo : commande {o['id']} confirmee. "
+    body = texts.T(lang, "sms_confirmed", id=o["id"])
     if esims:
-        body += f"Installe ton eSIM ici : {link} "
+        body += texts.T(lang, "sms_install", link=link)
         if _env("SMS_INCLUDE_ACTIVATION_CODE").lower() == "true":
             code = next((e["activation_code"] for e in esims if e["activation_code"]), None)
-            body += f"Code : {code} " if code else ""
-    body += "Facture envoyee par e-mail."
+            body += texts.T(lang, "sms_code", code=code) if code else ""
+    body += texts.T(lang, "sms_invoice")
     return _strip_accents(body)
 
 
@@ -187,7 +201,7 @@ def _load(order_id: int) -> dict | None:
         ).mappings().first()
         if not o or o["status"] not in ("paid", "provisioned"):
             return None
-        items = [dict(r) for r in c.execute(text("SELECT label, qty, unit_price FROM order_items WHERE order_id=:o ORDER BY id"), {"o": order_id}).mappings()]
+        items = texts.item_labels(c, order_id, o["lang"])  # libellés dans la langue de la commande
         esims = esims_for_order(c, order_id)
         inv = c.execute(text("SELECT number FROM invoices WHERE order_id=:o"), {"o": order_id}).scalar()
         pdf = get_pdf(c, inv) if inv else None

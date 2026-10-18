@@ -6,32 +6,31 @@ import Faq from "../components/Faq.jsx";
 import { DESTINATIONS, FAQ, eur, flag, fromPrice } from "../data.js";
 import { motion } from "framer-motion";
 
+import { t } from "../i18n.js";
 export default function Destination() {
   const { id } = useParams();
-  const dest = DESTINATIONS.find((d) => d.id === id);
-  if (!dest) return <Navigate to="/destinations" replace />;
+  const dest = DESTINATIONS.find((d) => d.id === id); if (!dest) return <Navigate to="/destinations" replace />;
 
   const related = DESTINATIONS.filter((d) => d.zone === dest.zone && d.id !== dest.id).slice(0, 4);
 
   return (
     <>
       <div className="dest-head">
-        <nav className="crumbs" aria-label="Fil d'Ariane">
-          <Link to="/">Accueil</Link> › <Link to="/destinations">Destinations</Link> › <span>{dest.name}</span>
+        <nav className="crumbs" aria-label={t("Fil d'Ariane")}>
+          <Link to="/">{t("Accueil")}</Link> › <Link to="/destinations">{t("Destinations")}</Link> › <span>{dest.name}</span>
         </nav>
         <motion.div className="dest-title" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <img src={flag(dest.id)} alt="" width="64" height="44" />
           <div>
             <h1>eSIM {dest.name}</h1>
-            <p className="muted">À partir de {eur(fromPrice(dest))} · installation en 1 minute · 10 % de la marge reversée à ta kozz</p>
+            <p className="muted">{t("À partir de {price} · installation en 1 minute · 10 % de la marge reversée à ta kozz", { price: eur(fromPrice(dest)) })}</p>
           </div>
         </motion.div>
       </div>
 
-      <Section title="Choisis ton forfait" subtitle="Le forfait démarre à ta première connexion sur place.">
+      <Section title={t("Choisis ton forfait")} subtitle={t("Le forfait démarre à ta première connexion sur place.")}>
         <PlanCards dest={dest} />
-        <p className="muted note">
-          Forfait Illimité : fair use affiché dès l'achat. Besoin d'aide pour choisir ? <Link to="/#assistant" className="accent">Essaie l'assistant</Link>.
+        <p className="muted note">{t("Forfait Illimité : fair use affiché dès l'achat. Besoin d'aide pour choisir ?")}{" "}<Link to="/#assistant" className="accent">{t("Essaie l'assistant")}</Link>.
         </p>
       </Section>
 
@@ -41,7 +40,7 @@ export default function Destination() {
         </Section>
       )}
 
-      <Section title="Questions fréquentes">
+      <Section title={t("Questions fréquentes")}>
         <Faq items={FAQ.filter((f) => f.cat === "Installation" || f.cat === "Achat")} />
       </Section>
     </>

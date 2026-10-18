@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { currentLang, t } from "../i18n.js";
 
 // Modèles de pages légales. À FAIRE VALIDER par un juriste avant l'ouverture : l'encadré orange reste affiché
 // tant que l'identité de la société n'est pas entièrement renseignée côté serveur (variables SELLER_*).
@@ -25,6 +26,7 @@ function Shell({ title, children, info }) {
           Projet de texte, à faire valider par un juriste. Les champs « {TODO} » seront remplis dès que la société sera immatriculée.
         </p>
       )}
+      {currentLang().code !== "fr" && <p className="draft" role="note">{t("Les textes juridiques sont rédigés en français : seule la version française fait foi.")}</p>}
       {children}
       <p className="muted note">Version {info.terms_version}</p>
     </div>
@@ -141,6 +143,35 @@ export function Retractation() {
         Je vous notifie par la présente ma rétractation du contrat portant sur la vente du produit ci-dessous.<br />
         Commande n° ______ · commandée le ______ · Nom du consommateur : ______ · Adresse : ______ · Date : ______
       </blockquote>
+    </Shell>
+  );
+}
+
+export function Remboursement() {
+  const info = useLegal();
+  const s = info?.seller || {};
+  return (
+    <Shell title="Politique de remboursement" info={info}>
+      <h2>eSIM non installée ou non utilisée</h2>
+      <p>
+        Les eSIM sont des produits numériques livrés immédiatement. Une fois l'eSIM délivrée, et comme tu as demandé l'exécution immédiate de ta commande, le droit de
+        rétractation ne s'applique plus (voir la page <Link to="/retractation">droit de rétractation</Link>). Si l'eSIM n'a pas été délivrée, ou si tu n'as reçu ni QR code
+        ni code d'activation, écris-nous : nous la livrons à nouveau ou nous te remboursons intégralement.
+      </p>
+      <h2>Problème technique</h2>
+      <p>
+        Si ton eSIM ne s'installe pas ou ne fonctionne pas dans le pays prévu alors que ton téléphone est compatible et débloqué, contacte-nous à {v(s.email)} avec ton numéro de
+        commande : nous cherchons une solution (nouvelle eSIM, forfait équivalent) ou nous te remboursons la part non utilisée.
+      </p>
+      <h2>Ce qui n'est pas remboursé</h2>
+      <p>
+        Un téléphone incompatible ou verrouillé par un opérateur, une eSIM déjà activée et consommée normalement, ou une erreur de destination au moment de la commande
+        (sauf si l'eSIM n'a pas encore été activée : écris-nous, nous étudions chaque cas).
+      </p>
+      <h2>Comment es-tu remboursé</h2>
+      <p>Les remboursements sont faits sur le moyen de paiement utilisé, dans un délai maximum de 14 jours après ta demande acceptée. Une remise de parrainage utilisée n'est pas remboursée en espèces.</p>
+      <h2>Tes droits légaux</h2>
+      <p>Cette politique s'ajoute à la garantie légale de conformité et à tes droits de consommateur, qu'elle ne remplace pas. Voir les <Link to="/cgv">conditions générales de vente</Link>.</p>
     </Shell>
   );
 }

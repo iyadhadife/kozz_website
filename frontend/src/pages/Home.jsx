@@ -12,6 +12,7 @@ import { useStore } from "../store.jsx";
 import { Counter } from "../components/Impact.jsx";
 import { api } from "../api.js";
 
+import { t, tn } from "../i18n.js";
 const TABS = [
   ["pop", "Populaires"],
   ["local", "Locales"],
@@ -23,15 +24,12 @@ const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.03 } } };
 function Tabs() {
   const { add } = useStore();
   const [tab, setTab] = useState("pop");
-  const popular = POPULAR.map((id) => DESTINATIONS.find((d) => d.id === id));
-
-  return (
-    <Section id="destinations" title="Où pars-tu ?" subtitle="Choisis ta destination, on s'occupe du reste.">
+  const popular = POPULAR.map((id) => DESTINATIONS.find((d) => d.id === id)); return ( <Section id="destinations" title={t("Où pars-tu ?")} subtitle={t("Choisis ta destination, on s'occupe du reste.")}>
       <div className="chips">
         {TABS.map(([k, l]) => (
           <button key={k} className={`chip ${tab === k ? "on" : ""}`} onClick={() => setTab(k)}>
             {tab === k && <motion.span layoutId="hometab" className="chip-bg" />}
-            <span>{l}</span>
+            <span>{t(l)}</span>
           </button>
         ))}
       </div>
@@ -44,8 +42,8 @@ function Tabs() {
             <motion.div key={z} variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } }} whileHover={{ y: -6 }}>
               <Link to={`/destinations?zone=${encodeURIComponent(z)}`} className="card dest">
                 <span className="dest-emoji">🌍</span>
-                <span className="dest-name">{z}</span>
-                <small className="muted">{DESTINATIONS.filter((d) => d.zone === z).length} pays</small>
+                <span className="dest-name">{t(z)}</span>
+                <small className="muted">{t("{n} pays", { n: DESTINATIONS.filter((d) => d.zone === z).length })}</small>
               </Link>
             </motion.div>
           ))}
@@ -55,12 +53,12 @@ function Tabs() {
               <span className="dest-emoji">🌐</span>
               <span className="dest-name">{m.name}</span>
               <small className="muted">{m.data}</small>
-              <small className="price-sm">{eur(m.price)}/mois</small>
-              <button className="btn btn-sm" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>Ajouter</button>
+              <small className="price-sm">{t("{price}/mois", { price: eur(m.price) })}</small>
+              <button className="btn btn-sm" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>{t("Ajouter")}</button>
             </motion.div>
           ))}
       </motion.div>
-      <Link to="/destinations" className="more">Voir toutes les destinations →</Link>
+      <Link to="/destinations" className="more">{t("Voir toutes les destinations →")}</Link>
     </Section>
   );
 }
@@ -73,11 +71,11 @@ function GlobalImpact() {
   }, []);
   if (!g) return null;
   return (
-    <Section id="dons" title="Ensemble, on a déjà fait avancer des causes" subtitle="Chaque achat finance 10 % du prix HT d'une cause choisie par le client. Voici le total, toutes commandes confondues.">
+    <Section id="dons" title={t("Ensemble, on a déjà fait avancer des causes")} subtitle={t("Chaque achat finance 10 % du prix HT d'une cause choisie par le client. Voici le total, toutes commandes confondues.")}>
       <div className="card total">
-        <span className="lbl">Dons générés avec KozzGo</span>
+        <span className="lbl">{t("Dons générés avec KozzGo")}</span>
         <strong className="big"><Counter value={g.total} format={eur} /></strong>
-        <span className="muted">{g.orders} commande{g.orders > 1 ? "s" : ""} solidaire{g.orders > 1 ? "s" : ""}</span>
+        <span className="muted">{tn(g.orders, "{n} commande solidaire", "{n} commandes solidaires")}</span>
       </div>
       {g.causes.length > 0 ? (
         <div className="tiers">
@@ -85,28 +83,28 @@ function GlobalImpact() {
             <motion.div key={c.id} className="card tier" initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}>
               <span className="tier-icon">{c.emoji}</span>
               <p className="big"><Counter value={c.units} format={fmtNum} /></p>
-              <p className="muted">{c.unit}</p>
-              <small className="muted">{eur(c.donation)} · {c.name}</small>
+              <p className="muted">{t(c.unit)}</p>
+              <small className="muted">{eur(c.donation)} · {t(c.name)}</small>
             </motion.div>
           ))}
         </div>
       ) : (
-        <p className="muted">Les premiers dons apparaîtront ici dès les premières commandes.</p>
+        <p className="muted">{t("Les premiers dons apparaîtront ici dès les premières commandes.")}</p>
       )}
-      <p className="muted note">Les unités d'impact sont indicatives ; le reversement aux associations partenaires est en cours de formalisation (conventions).</p>
+      <p className="muted note">{t("Les unités d'impact sont indicatives ; le reversement aux associations partenaires est en cours de formalisation (conventions).")}</p>
     </Section>
   );
 }
 
 function ImpactTeaser() {
   return (
-    <Section id="causes" title="Ta data voyage. Ta kozz avance." subtitle="12 causes, 6 catégories. Tu choisis à chaque achat.">
+    <Section id="causes" title={t("Ta data voyage. Ta kozz avance.")} subtitle={t("12 causes, 6 catégories. Tu choisis à chaque achat.")}>
       <div className="cause-strip">
         {CAUSES.map((c) => (
           <motion.span key={c.id} className="cause-tag" whileHover={{ scale: 1.08 }}>{c.emoji} {c.name}</motion.span>
         ))}
       </div>
-      <Link to="/impact" className="more">Découvrir l'impact →</Link>
+      <Link to="/impact" className="more">{t("Découvrir l'impact →")}</Link>
     </Section>
   );
 }
@@ -120,9 +118,9 @@ export default function Home() {
       <HowItWorks />
       <GlobalImpact />
       <ImpactTeaser />
-      <Section id="faq" title="Questions fréquentes">
+      <Section id="faq" title={t("Questions fréquentes")}>
         <Faq items={FAQ.slice(0, 5)} />
-        <Link to="/aide" className="more">Tout le centre d'aide →</Link>
+        <Link to="/aide" className="more">{t("Tout le centre d'aide →")}</Link>
       </Section>
     </>
   );

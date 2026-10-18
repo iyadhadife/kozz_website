@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from . import notify, referral
+from . import notify, referral, texts
 from . import security as sec
 from .db import engine
 from .fulfillment import esims_for_order, fulfilment_state
@@ -37,6 +37,7 @@ class RegisterIn(BaseModel):
     password: str = Field(max_length=200)
     first_name: Optional[str] = Field(None, max_length=100)
     ref: Optional[str] = Field(None, max_length=12)  # code de parrainage (lien ?ref=CODE)
+    lang: Optional[str] = Field(None, max_length=8)  # langue du site : l'e-mail du code est en français ou en anglais
 
 
 class LoginIn(BaseModel):
@@ -133,19 +134,20 @@ class VerifyIn(BaseModel):
 
 class ResendIn(BaseModel):
     email: str = Field(max_length=255, pattern=EMAIL)
+    lang: Optional[str] = Field(None, max_length=8)
 
 
 def _code_hash(email: str, code: str) -> str:
     return hashlib.sha256(f"{email}:{code}".encode()).hexdigest()
 
 
-def _send_code(email: str, code: str) -> None:
-    """Envoie le code par e-mail. Le code n'est jamais écrit dans les logs."""
-    subject = f"{code} est ton code de vérification KozzGo"
-    text_body = (f"Ton code de vérification KozzGo : {code}\n\nIl est valable {CODE_TTL_MIN} minutes. "
-                 "Si tu n'as pas demandé la création d'un compte, ignore ce message : rien ne sera créé.")
-    html_body = (f'<p>Ton code de vérification KozzGo :</p><p style="font-size:28px;letter-spacing:6px;font-weight:700">{code}</p>'
-                 f'<p>Il est valable {CODE_TTL_MIN} minutes.</p><p style="color:#666">Si tu n\'as pas demandé la création d\'un compte, ignore ce message : rien ne sera créé.</p>')
+def _send_code(email: str, code: str, lang: str | None = None) -> None:
+    """Envoie le code par e-mail (français ou anglais). Le code n'est jamais écrit dans les logs."""
+    lg = texts.lang_for(lang)
+    subject = texts.T(lg, "code_subject", code=code)
+    text_body = texts.T(lg, "code_text", code=code, min=CODE_TTL_MIN)
+    html_body = (f'<p>{texts.T(lg, "code_html1")}</p><p style="font-size:28px;letter-spacing:6px;font-weight:700">{code}</p>'
+                 f'<p>{texts.T(lg, "code_html2", min=CODE_TTL_MIN)}</p><p style="color:#666">{texts.T(lg, "code_html3")}</p>')
     try:
         notify.send_email(email, subject, text_body, html_body)
     except notify.NotConfigured:
@@ -216,7 +218,7 @@ def register(body: RegisterIn, request: Request, response: Response):
             {"e": email, "p": pw_hash, "f": _clean(body.first_name), "r": (body.ref or "").strip().upper()[:12] or None,
              "h": _code_hash(email, code), "m": CODE_TTL_MIN},
         )
-    _send_code(email, code)
+    _send_code(email, code, body.lang)
     return {"pending": True, "email": email, "expires_in_minutes": CODE_TTL_MIN, "resend_in": RESEND_AFTER_S}
 
 
@@ -241,7 +243,7 @@ def register_resend(body: ResendIn, request: Request):
             text("UPDATE pending_registrations SET code_hash=:h, attempts=0, sends=sends+1, expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL :m MINUTE), last_sent_at=UTC_TIMESTAMP() WHERE email=:e"),
             {"h": _code_hash(email, code), "m": CODE_TTL_MIN, "e": email},
         )
-    _send_code(email, code)
+    _send_code(email, code, body.lang)
     return {"pending": True, "resend_in": RESEND_AFTER_S}
 
 
@@ -399,6 +401,9 @@ def delete_me(body: DeleteIn, request: Request, response: Response, cust=Depends
     if not sec.verify_password(cust["password_hash"], body.password):
         sec.record_failure(key)
         raise HTTPException(403, "Mot de passe incorrect.")
+    from . import payments  # import tardif : évite une dépendance circulaire
+
+    payments.delete_stripe_customer(cust["id"])  # efface aussi les cartes enregistrées chez Stripe
     with engine.begin() as c:
         c.execute(
             text("UPDATE order_items SET phone = NULL WHERE order_id IN (SELECT id FROM orders WHERE customer_id = :i)"),

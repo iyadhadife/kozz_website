@@ -251,3 +251,19 @@ CREATE TABLE IF NOT EXISTS relatives (
   INDEX idx_relatives_customer (customer_id),
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE   -- supprimés avec le compte
 ) ENGINE=InnoDB;
+-- Paiement en plusieurs devises : taux du jour + devise de chaque commande
+CREATE TABLE IF NOT EXISTS fx_rates (
+  currency   CHAR(3) PRIMARY KEY,
+  rate       DECIMAL(18,8) NOT NULL,              -- unités de la devise pour 1 EUR
+  source     VARCHAR(20) NOT NULL,
+  fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+ALTER TABLE orders
+  ADD COLUMN currency            CHAR(3) NOT NULL DEFAULT 'EUR',        -- devise débitée par Stripe
+  ADD COLUMN fx_rate             DECIMAL(18,8) NOT NULL DEFAULT 1,      -- taux appliqué (marge incluse) : 1 EUR = fx_rate devise
+  ADD COLUMN charge_amount_minor BIGINT NULL;                           -- montant exact attendu de Stripe, en unités mineures de `currency`
+-- Cartes enregistrées chez Stripe (jamais chez nous) : on ne garde que l'identifiant du « Customer » Stripe, pas de numéro de carte.
+-- Langue des messages et de la facture : fr ou en (choisie sur le site au moment de la commande).
+ALTER TABLE customers ADD COLUMN stripe_customer_id VARCHAR(64) NULL UNIQUE;
+ALTER TABLE orders    ADD COLUMN lang CHAR(2) NOT NULL DEFAULT 'fr';

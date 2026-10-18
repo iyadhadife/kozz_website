@@ -12,6 +12,7 @@ import threading
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from . import texts
 from .db import engine
 import os
 
@@ -158,14 +159,16 @@ def _safe(order_id: int) -> None:
 def esims_for_order(c, order_id: int) -> list[dict]:
     rows = c.execute(
         text(
-            "SELECT e.status, e.iccid, e.activation_code, e.qr_png, e.ios_tap_link, e.error, oi.label "
+            "SELECT e.status, e.iccid, e.activation_code, e.qr_png, e.ios_tap_link, e.error, oi.label, oi.id AS item_id "
             "FROM esims e JOIN order_items oi ON oi.id=e.order_item_id WHERE e.order_id=:o ORDER BY e.id"
         ),
         {"o": order_id},
     ).mappings().all()
+    lang = c.execute(text("SELECT lang FROM orders WHERE id=:o"), {"o": order_id}).scalar() or "fr"
+    labels = {x["id"]: x["label"] for x in texts.item_labels(c, order_id, lang)}  # libellé dans la langue de la commande
     return [
         {
-            "label": r["label"],
+            "label": labels.get(r["item_id"], r["label"]),
             "status": r["status"],
             "iccid": r["iccid"],
             "activation_code": r["activation_code"],

@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from . import legal, referral
+from . import fx, legal, referral, texts
 from .db import engine
 from .pricing import donation
 
@@ -37,6 +37,8 @@ class OrderIn(BaseModel):
     # Consentements exprès, exigés avant tout paiement (conservés avec la date et la version des CGV)
     accept_terms: bool = False
     waive_withdrawal: bool = False
+    lang: str = Field("fr", max_length=8)  # langue du site : sert à écrire e-mail, SMS et facture en français ou en anglais
+    currency: str = Field("EUR", min_length=3, max_length=3)  # devise de paiement ; les prix de référence restent en euros
 
 
 def _price_item(c, it: ItemIn):
@@ -95,6 +97,14 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
             total += line_total
             don_total += don
 
+        # Devise : l'abonnement mensuel reste en euros (son prix se renouvelle chaque mois sans nouvelle conversion)
+        cur = order.currency.upper()
+        if any(it.kind == "subscription" for it, *_ in lines):
+            cur = "EUR"
+        rates, _ = fx.current()
+        if cur not in rates:
+            raise HTTPException(422, "Cette devise n'est pas disponible pour le moment. Paie en euros.")
+
         # Crédit de parrainage (clients connectés seulement) : calculé ici, jamais envoyé par le navigateur.
         gross = total
         discount, credit_ids = referral.reserve(c, customer["id"], gross) if customer else (Decimal(0), [])
@@ -106,15 +116,26 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
 
         # Connecté : commande rattachée au compte. Invité : on garde seulement l'e-mail, jamais de compte implicite.
         order_id = c.execute(
-            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, discount_amount, donation_amount, terms_accepted_at, terms_version, withdrawal_waiver_at) "
-                 "VALUES (:c, :g, :k, :t, :disc, :d, UTC_TIMESTAMP(), :tv, UTC_TIMESTAMP())"),
+            text("INSERT INTO orders (customer_id, guest_email, cause_id, total_ttc, discount_amount, donation_amount, terms_accepted_at, terms_version, withdrawal_waiver_at, lang) "
+                 "VALUES (:c, :g, :k, :t, :disc, :d, UTC_TIMESTAMP(), :tv, UTC_TIMESTAMP(), :lg)"),
             {
                 "c": customer["id"] if customer else None,
                 "g": None if customer else order.email.lower(),
                 "k": cause["id"], "t": total, "disc": discount, "d": don_total.quantize(Decimal("0.0001")), "tv": legal.terms_version(),
+                "lg": texts.lang_for(order.lang),
             },
         ).lastrowid
         referral.attach(c, credit_ids, order_id)
+
+        # Montants à débiter dans la devise choisie : conversion ligne par ligne (la somme est exactement ce que Stripe attend)
+        unit_minor = [fx.to_minor(unit_price, cur, rates) for _, _, unit_price, _ in lines]
+        gross_minor = sum(um * it.qty for um, (it, *_) in zip(unit_minor, lines))
+        discount_minor = min(fx.to_minor(discount, cur, rates), max(gross_minor - 1, 0)) if discount else 0
+        charge_minor = gross_minor - discount_minor
+        c.execute(
+            text("UPDATE orders SET currency=:cu, fx_rate=:r, charge_amount_minor=:m WHERE id=:o"),
+            {"cu": cur, "r": rates[cur], "m": charge_minor, "o": order_id},
+        )
 
         for it, label, unit_price, don in lines:
             c.execute(
@@ -129,6 +150,8 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
                 },
             )
 
+        localized = texts.item_labels(c, order_id, texts.lang_for(order.lang))  # noms affichés par Stripe, dans la langue du site
+
     return {
         "order_id": order_id,
         "total": float(total),
@@ -137,6 +160,12 @@ def create_order(order: OrderIn, customer: Optional[dict] = None):
         "cause": {"id": cause["id"], "name": cause["name"], "unit": cause["unit"]},
         "impact_units": float(don_total / Decimal(cause["cost_per_unit"])),
         # lignes à facturer (prix issus de la base) : consommées par payments.py, jamais renvoyées au navigateur
-        "_lines": [{"kind": it.kind, "label": label, "unit_price": unit_price, "qty": it.qty} for it, label, unit_price, _ in lines],
+        "currency": cur,
+        "charge": {"currency": cur, "amount_minor": charge_minor, "amount": float(fx.from_minor(charge_minor, cur)), "rate": float(rates[cur])},
+        "_lines": [{"kind": it.kind, "label": loc["label"], "unit_price": unit_price, "unit_minor": um, "qty": it.qty}
+                   for (it, _label, unit_price, _), um, loc in zip(lines, unit_minor, localized)],
         "_discount": discount,
+        "_discount_minor": discount_minor,
+        "_currency": cur,
+        "_site_lang": order.lang,
     }

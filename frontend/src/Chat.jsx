@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { t } from "./i18n.js";
 const threadId = crypto.randomUUID();
 
 export default function Chat() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([{ role: "bot", text: "Salut ! Une question sur ton eSIM ?" }]);
+  const [messages, setMessages] = useState([{ role: "bot", text: t("Salut ! Une question sur ton eSIM ?") }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const log = useRef(null);
@@ -30,7 +31,7 @@ export default function Chat() {
       const data = await res.json();
       setMessages((m) => [...m, { role: "bot", text: data.reply }]);
     } catch {
-      setMessages((m) => [...m, { role: "bot", text: "Oups, je n'arrive pas à te répondre pour le moment." }]);
+      setMessages((m) => [...m, { role: "bot", text: t("Oups, je n'arrive pas à te répondre pour le moment.") }]);
     } finally {
       setBusy(false);
     }
@@ -56,11 +57,11 @@ export default function Chat() {
               ))}
               {busy && <div className="msg bot typing"><i /><i /><i /></div>}
             </div>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Écris un message…" />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={t("Écris un message…")} />
           </motion.form>
         )}
       </AnimatePresence>
-      <motion.button className="chat-fab" onClick={() => setOpen((o) => !o)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label="Ouvrir le chat">
+      <motion.button className="chat-fab" onClick={() => setOpen((o) => !o)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} aria-label={t("Ouvrir le chat")}>
         {open ? "✕" : "💬"}
       </motion.button>
     </div>

@@ -282,3 +282,43 @@ a.dest:hover { border-color: var(--coral); }
 .code-input { font-size: 1.8rem; letter-spacing: .6rem; text-align: center; font-weight: 700; }
 .linklike { background: none; border: 0; padding: 0; color: var(--coral); cursor: pointer; font: inherit; text-decoration: underline; }
 .linklike:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+
+/* menu du profil */
+.menu-group { display: grid; gap: .5rem; }
+.menu-title { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .6rem .4rem 0; }
+.menu { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.menu-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; padding: .9rem 1.1rem; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); cursor: pointer; font: inherit; text-align: left; text-decoration: none; }
+.menu-row:hover { border-color: var(--coral); }
+.menu-icon { font-size: 1.4rem; }
+.menu-text { display: grid; gap: .1rem; min-width: 0; }
+.menu-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-chev { color: var(--muted); font-size: 1.3rem; }
+.menu-panel { margin: .5rem 0 .3rem; display: grid; gap: 1rem; }
+.rowline { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .6rem 1rem; background: var(--card2); border-radius: 12px; }
+.toggle { padding: .3rem 0; }
+.cause-strip .cause { cursor: pointer; }
+
+.cur-select { background: var(--card2); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: .4rem .7rem; font: .85rem "Poppins", sans-serif; cursor: pointer; max-width: 100%; }
+.cur-select.compact { padding: .35rem .5rem; }
+
+/* arabe : lecture de droite à gauche */
+[dir="rtl"] .search { text-align: right; }
+[dir="rtl"] .search-ico { left: auto; right: 1.1rem; }
+[dir="rtl"] .search-list button, [dir="rtl"] .faq-item button, [dir="rtl"] .orders > li > button, [dir="rtl"] .menu-row, [dir="rtl"] .install-steps, [dir="rtl"] .footer { text-align: right; }
+[dir="rtl"] .search-list button small { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .mega { left: auto; right: -1rem; }
+[dir="rtl"] .drawer { right: auto; left: 0; border-left: 0; border-right: 1px solid var(--line); }
+[dir="rtl"] .close { right: auto; left: 1rem; }
+[dir="rtl"] .chat-wrap { right: auto; left: 1.2rem; justify-items: start; }
+[dir="rtl"] .pwd input { padding-right: .8rem; padding-left: 3rem; }
+[dir="rtl"] .pwd button { right: auto; left: .5rem; }
+[dir="rtl"] .legal-page ul, [dir="rtl"] .install-steps { padding-left: 0; padding-right: 1.2rem; }
+[dir="rtl"] .legal-page blockquote { border-left: 0; border-right: 3px solid var(--coral); border-radius: 12px 0 0 12px; }
+
+.nav-right .btn, .nav-right .cur-select { white-space: nowrap; }
+.nav-right { gap: .5rem; }
+[dir="rtl"] .search input { padding-right: 3rem; padding-left: 1rem; }
+.cur-select.compact { flex: none; min-width: 3.9rem; text-overflow: clip; }
+@media (max-width: 520px) { .nav-right { gap: .3rem; } .nav-right .btn { padding-left: .8rem; padding-right: .8rem; } }
+
+.cur-select { width: auto; }

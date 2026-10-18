@@ -15,7 +15,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import text
 
-from . import legal
+from . import legal, texts
 from .db import engine
 
 log = logging.getLogger("kozz.invoicing")
@@ -58,11 +58,11 @@ def compute_lines(items: list[dict], rate: Decimal) -> tuple[list[dict], Decimal
     return lines, total_ht, total_ttc - total_ht, total_ttc
 
 
-def _customer_snapshot(order: dict, account: dict | None) -> dict:
+def _customer_snapshot(order: dict, account: dict | None, lang: str = "fr") -> dict:
     addr = json.loads(order["billing_address"]) if isinstance(order["billing_address"], str) else (order["billing_address"] or {})
     name = order["billing_name"] or (" ".join(filter(None, [account and account.get("first_name"), account and account.get("last_name")])) or None)
     return {
-        "name": name or "Client particulier",
+        "name": name or texts.T(lang, "inv_default_client"),
         "email": (account or {}).get("email") or order["guest_email"],
         "address": addr,
         "country": order["billing_country"] or addr.get("country"),
@@ -77,7 +77,7 @@ def _address_lines(a: dict) -> list[str]:
 
 
 def render_pdf(number: str, issued_at: datetime, seller: dict, customer: dict, lines: list[dict],
-               rate: Decimal, total_ht: Decimal, total_vat: Decimal, total_ttc: Decimal, paid_label: str) -> bytes:
+               rate: Decimal, total_ht: Decimal, total_vat: Decimal, total_ttc: Decimal, paid_label: str, lang: str = "fr") -> bytes:
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_RIGHT
     from reportlab.lib.pagesizes import A4
@@ -99,41 +99,53 @@ def render_pdf(number: str, issued_at: datetime, seller: dict, customer: dict, l
     h1 = ParagraphStyle("h1", parent=base, fontName=bold, fontSize=20, leading=24)
     right = ParagraphStyle("r", parent=base, alignment=TA_RIGHT)
     p = lambda t, st=base: Paragraph(escape(str(t)).replace("\n", "<br/>"), st)  # noqa: E731
-    eur = lambda v: f"{Decimal(v):,.2f} €".replace(",", " ").replace(".", ",")  # noqa: E731
+    eur = lambda v: texts.money(lang, v)  # noqa: E731
+    L = lambda k, **kw: texts.T(lang, k, **kw)  # noqa: E731
 
-    seller_lines = [seller["name"], f"{seller['legal_form']} au capital de {seller['capital']} €" if seller["capital"] else seller["legal_form"], seller["address"]]
-    seller_lines += [f"SIREN {seller['siren']}" + (f" · {seller['rcs']}" if seller["rcs"] else "")]
-    seller_lines += [f"N° TVA intracommunautaire : {seller['vat_number']}"] if seller["vat_number"] else []
+    seller_lines = [seller["name"], L("inv_capital", form=seller["legal_form"], cap=seller["capital"]) if seller["capital"] else seller["legal_form"], seller["address"]]
+    seller_lines += [L("inv_siren", s=seller["siren"]) + (f" · {seller['rcs']}" if seller["rcs"] else "")]
+    seller_lines += [L("inv_vat_no", v=seller["vat_number"])] if seller["vat_number"] else []
     seller_lines += [x for x in [seller["email"], seller["phone"]] if x]
     cust_lines = [customer["name"]] + _address_lines(customer.get("address") or {}) + ([customer["email"]] if customer.get("email") else [])
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=16 * mm,
-                            title=f"Facture {number}", author=seller["name"])
-    head = Table([[p("FACTURE", h1), p(f"N° {number}\nDate d'émission : {issued_at:%d/%m/%Y}\nDate de la prestation : {issued_at:%d/%m/%Y}", right)]], colWidths=[90 * mm, 84 * mm])
-    parties = Table([[p("Vendeur\n" + "\n".join(seller_lines)), p("Client\n" + "\n".join(cust_lines))]], colWidths=[87 * mm, 87 * mm])
+                            title=L("inv_doc", no=number), author=seller["name"])
+    head = Table([[p(L("inv_title"), h1), p(L("inv_no", no=number) + "\n" + L("inv_issue", d=f"{issued_at:%d/%m/%Y}") + "\n" + L("inv_service", d=f"{issued_at:%d/%m/%Y}"), right)]], colWidths=[90 * mm, 84 * mm])
+    parties = Table([[p(L("inv_seller") + "\n" + "\n".join(seller_lines)), p(L("inv_client") + "\n" + "\n".join(cust_lines))]], colWidths=[87 * mm, 87 * mm])
     parties.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
 
-    rows = [[p("Désignation", base), p("Qté", right), p("PU HT", right), p("TVA", right), p("Total HT", right), p("Total TTC", right)]]
+    rows = [[p(L("inv_col_desc"), base), p(L("inv_col_qty"), right), p(L("inv_col_unit"), right), p(L("inv_col_vat"), right), p(L("inv_col_ht"), right), p(L("inv_col_ttc"), right)]]
     for l in lines:
         rows.append([p(l["label"]), p(l["qty"], right), p(eur(l["unit_ht"]), right), p(f"{Decimal(l['vat_rate']):g} %", right), p(eur(l["total_ht"]), right), p(eur(l["total_ttc"]), right)])
     table = Table(rows, colWidths=[68 * mm, 12 * mm, 22 * mm, 14 * mm, 28 * mm, 30 * mm], repeatRows=1)
     table.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.black), ("LINEBELOW", (0, 1), (-1, -1), 0.25, colors.HexColor("#cccccc")),
                                ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    totals = Table([[p("Total HT", right), p(eur(total_ht), right)], [p(f"TVA ({Decimal(rate):g} %)", right), p(eur(total_vat), right)],
-                    [p("Total TTC", ParagraphStyle("t", parent=right, fontName=bold)), p(eur(total_ttc), ParagraphStyle("t2", parent=right, fontName=bold))]],
+    totals = Table([[p(L("inv_tot_ht"), right), p(eur(total_ht), right)], [p(L("inv_tot_vat", r=f"{Decimal(rate):g}"), right), p(eur(total_vat), right)],
+                    [p(L("inv_tot_ttc"), ParagraphStyle("t", parent=right, fontName=bold)), p(eur(total_ttc), ParagraphStyle("t2", parent=right, fontName=bold))]],
                    colWidths=[144 * mm, 30 * mm])
 
-    mentions = [paid_label, "Devise : euro (EUR). Aucun escompte pour paiement anticipé."]
+    mentions = [paid_label, L("inv_currency")]
     if seller["vat_franchise"]:
-        mentions.append("TVA non applicable, art. 293 B du CGI.")
+        mentions.append(L("inv_franchise"))
     if seller["mediator"]:
-        mentions.append(f"Médiation de la consommation : {seller['mediator']}")
-    mentions.append("Facture à conserver. Les prix incluent la TVA applicable.")
+        mentions.append(L("inv_mediator", m=seller["mediator"]))
+    mentions.append(L("inv_keep"))
 
     doc.build([head, Spacer(1, 8 * mm), parties, Spacer(1, 8 * mm), table, Spacer(1, 4 * mm), totals, Spacer(1, 8 * mm),
                p("\n".join(mentions), small)])
     return buf.getvalue()
+
+
+def _paid_label(order) -> str:
+    """Facture établie en euros. Si le client a payé dans une autre devise, on indique le montant débité, le taux et les frais de conversion."""
+    lang, cur = order["lang"], order["currency"]
+    if cur == "EUR" or order["charge_amount_minor"] is None:
+        return texts.T(lang, "inv_paid")
+    from . import fx
+
+    amount = fx.from_minor(order["charge_amount_minor"], cur)
+    return texts.T(lang, "inv_paid_fx", amount=f"{amount:,.{fx.CURRENCIES[cur][0]}f}", cur=cur, rate=f"{Decimal(order['fx_rate']):.4f}")
 
 
 def issue_invoice(order_id: int) -> str | None:
@@ -152,18 +164,19 @@ def issue_invoice(order_id: int) -> str | None:
         account = None
         if order["customer_id"]:
             account = c.execute(text("SELECT email, first_name, last_name FROM customers WHERE id=:i"), {"i": order["customer_id"]}).mappings().first()
-        items = [dict(r) for r in c.execute(text("SELECT label, qty, unit_price FROM order_items WHERE order_id=:o ORDER BY id"), {"o": order_id}).mappings()]
+        lang = order["lang"]
+        items = texts.item_labels(c, order_id, lang)
         if Decimal(order["discount_amount"] or 0) > 0:
-            items.append({"label": "Remise parrainage", "qty": 1, "unit_price": -Decimal(order["discount_amount"])})
+            items.append({"label": texts.T(lang, "inv_discount"), "qty": 1, "unit_price": -Decimal(order["discount_amount"])})
         rate = legal.vat_rate()
         lines, total_ht, total_vat, total_ttc = compute_lines(items, rate)
         if total_ttc != Decimal(order["total_ttc"]):
             log.error("Facture %s : total %s ≠ commande %s, émission annulée", order_id, total_ttc, order["total_ttc"])
             return None
         now = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
-        seller, customer = legal.seller(), _customer_snapshot(dict(order), dict(account) if account else None)
+        seller, customer = legal.seller(), _customer_snapshot(dict(order), dict(account) if account else None, lang)
         number = _next_number(c, now.year)
-        pdf = render_pdf(number, now, seller, customer, lines, rate, total_ht, total_vat, total_ttc, "Payée par carte bancaire via Stripe.")
+        pdf = render_pdf(number, now, seller, customer, lines, rate, total_ht, total_vat, total_ttc, _paid_label(order), lang)
         c.execute(
             text(
                 "INSERT INTO invoices (number, order_id, issued_at, seller, customer, line_items, vat_rate, total_ht, total_vat, total_ttc, pdf, pdf_sha256) "

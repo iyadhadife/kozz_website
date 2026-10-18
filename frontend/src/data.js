@@ -1,3 +1,5 @@
+import { countryName, t, tn } from "./i18n.js";
+
 // Prix TTC par destination : [city-break 1 Go/7 j, semaine 3 Go/10 j, voyage 10 Go/30 j, illimité 10 j]
 // Source : grille A.1 des hypothèses tarifaires. Plusieurs prix sont encore "à confirmer" (relevés incomplets).
 export const TIERS = [
@@ -53,8 +55,26 @@ export const MARGIN_RATE = { esim: 0.45, subscription: 0.3, topup: 0.07 }; // re
 export const donation = (priceTTC, kind) => (priceTTC / 1.2) * MARGIN_RATE[kind] * 0.1;
 export const impactUnits = (euros, cause) => euros / cause.cost;
 
-export const eur = (n) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-export const fmtNum = (n) => n.toLocaleString("fr-FR", { maximumFractionDigits: n < 10 ? 1 : 0 });
+// --- Devises : l'euro TTC reste la référence ; le serveur impose la même règle d'arrondi au paiement (backend/app/fx.py) ---
+const FX = { code: "EUR", rate: 1, decimals: 2, step: 0, locale: "fr-FR" };
+export const FX_STATE = FX;
+export function setCurrencyState(p) {
+  Object.assign(FX, p);
+}
+// prix en euros -> unités mineures de la devise choisie (centimes, yens entiers…), comme le serveur
+export const minorOf = (n) => {
+  let major = n * FX.rate;
+  if (FX.step) major = Math.max(FX.step, Math.round(major / FX.step) * FX.step);
+  return Math.round(major * 10 ** FX.decimals + 1e-9);
+};
+const fmt = (major, code, decimals, locale) =>
+  new Intl.NumberFormat(locale, { style: "currency", currency: code, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(major);
+export const fmtMinor = (minor) => fmt(minor / 10 ** FX.decimals, FX.code, FX.decimals, FX.locale);
+export const eur = (n) => fmtMinor(minorOf(n)); // un prix en euros, affiché dans la devise choisie
+export const eurLine = (price, qty) => fmtMinor(minorOf(price) * qty); // même somme que celle débitée
+export const eurFixed = (n) => fmt(n, "EUR", 2, FX.locale); // montants comptables (factures, historique) : toujours en euros
+export const money = (n, code, decimals = 2) => fmt(n, code, decimals, FX.locale); // montant déjà exprimé dans `code`
+export const fmtNum = (n) => n.toLocaleString(FX.locale, { maximumFractionDigits: n < 10 ? 1 : 0 });
 
 // --- Navigation / catalogue ---
 export const flag = (id) => `/flags/${id}.svg`; // hébergés chez nous (RGPD : aucune requête vers un tiers) ; les emojis drapeaux ne s'affichent pas sous Windows
@@ -86,12 +106,14 @@ export const FAQ = [
 const replace = (arr, next) => arr.splice(0, arr.length, ...next);
 
 export function hydrateCatalog(c) {
-  replace(TIERS, c.tiers.map((t) => ({ ...t, gb: t.gb ?? Infinity })));
+  replace(TIERS, c.tiers.map((x) => ({ ...x, gb: x.gb ?? Infinity })));
   replace(DESTINATIONS, c.destinations);
   replace(ZONES, [...new Set(c.destinations.map((d) => d.zone))]);
   replace(CAUSES, c.causes);
   replace(MONDE, c.monde);
   Object.assign(MARGIN_RATE, c.margin_rates);
+  RAW = null; // nouvelles données françaises : on refait la copie de référence
+  localizeData();
 }
 
 export async function loadCatalog() {
@@ -102,4 +124,43 @@ export async function loadCatalog() {
   } catch {
     console.warn("API injoignable, données locales utilisées");
   }
+}
+
+
+// --- Langue : les données (forfaits, causes, FAQ, pays…) sont écrites en français dans la base. On garde une copie française de
+// référence (RAW) et on traduit les champs affichés en place à chaque changement de langue, sans toucher aux composants. ---
+let RAW = null;
+const snap = () => ({
+  tiers: TIERS.map((x) => ({ name: x.name, blurb: x.blurb })),
+  usage: USAGE.map((x) => ({ label: x.label, hint: x.hint })),
+  causes: CAUSES.map((x) => ({ cat: x.cat, name: x.name, unit: x.unit })),
+  monde: MONDE.map((x) => ({ name: x.name, data: x.data })),
+  faq: FAQ.map((x) => ({ cat: x.cat, q: x.q, a: x.a })),
+  dest: DESTINATIONS.map((x) => ({ id: x.id, name: x.name })),
+});
+export function localizeData() {
+  if (!RAW) RAW = snap();
+  TIERS.forEach((x, i) => { x.name = t(RAW.tiers[i].name); x.blurb = t(RAW.tiers[i].blurb); });
+  USAGE.forEach((x, i) => { x.label = t(RAW.usage[i].label); x.hint = t(RAW.usage[i].hint); });
+  CAUSES.forEach((x, i) => { const r = RAW.causes[i]; if (r) { x.cat = t(r.cat); x.name = t(r.name); x.unit = t(r.unit); } });
+  MONDE.forEach((x, i) => { const r = RAW.monde[i]; if (r) { x.name = t(r.name); x.data = t(r.data); } });
+  FAQ.forEach((x, i) => { x.q = t(RAW.faq[i].q); x.a = t(RAW.faq[i].a); }); // `cat` reste en français : le code s'en sert comme identifiant
+  DESTINATIONS.forEach((x, i) => { const r = RAW.dest[i]; if (r) x.name = countryName({ id: r.id, name: r.name }); });
+}
+
+// Libellés courants
+export const gbLabel = (gb) => (gb === Infinity ? t("Illimité") : t("{n} Go", { n: gb }));
+export const daysLabel = (n) => tn(n, "{n} jour", "{n} jours");
+// Libellé d'une ligne du panier, reconstruit dans la langue courante (le texte enregistré dans le panier reste en français)
+export function itemLabel(i) {
+  if (i.kind === "esim") {
+    const d = DESTINATIONS.find((x) => x.id === i.destination_id);
+    const tier = TIERS.find((x) => x.key === i.tier_key);
+    if (d && tier) return `${t("eSIM")} ${d.name} · ${gbLabel(tier.gb)} / ${t("{n} j", { n: tier.days })}`;
+  }
+  if (i.kind === "subscription") {
+    const m = MONDE.find((x) => x.id === i.subscription_id);
+    if (m) return `Kozz Monde · ${m.name} (${t("mensuel")})`;
+  }
+  return i.label;
 }

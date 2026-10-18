@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 
+import { t } from "../i18n.js";
 const safeLink = (url) => (typeof url === "string" && /^https:\/\//i.test(url) ? url : null);
 
 function One({ e }) {
@@ -17,7 +18,7 @@ function One({ e }) {
     return (
       <div className="esim card">
         <strong>{e.label}</strong>
-        <p className="error">Ton paiement est bien reçu, mais nous n'avons pas pu préparer cette eSIM. Nous la résolvons et tu la recevras dès que possible. Écris-nous avec le chat si besoin.</p>
+        <p className="error">{t("Ton paiement est bien reçu, mais nous n'avons pas pu préparer cette eSIM. Nous la résolvons et tu la recevras dès que possible. Écris-nous avec le chat si besoin.")}</p>
       </div>
     );
   }
@@ -25,7 +26,7 @@ function One({ e }) {
     return (
       <div className="esim card">
         <strong>{e.label}</strong>
-        <p className="muted">Ton eSIM est créée, mais son QR code doit encore t'être transmis. Écris-nous avec le chat : nous te l'envoyons tout de suite.</p>
+        <p className="muted">{t("Ton eSIM est créée, mais son QR code doit encore t'être transmis. Écris-nous avec le chat : nous te l'envoyons tout de suite.")}</p>
       </div>
     );
   }
@@ -33,17 +34,17 @@ function One({ e }) {
   return (
     <motion.div className="esim card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <strong>{e.label}</strong>
-      {e.qr_png && <img className="qr" src={`data:image/png;base64,${e.qr_png}`} alt="QR code d'installation de l'eSIM" width="200" height="200" />}
+      {e.qr_png && <img className="qr" src={`data:image/png;base64,${e.qr_png}`} alt={t("QR code d'installation de l'eSIM")} width="200" height="200" />}
       <ol className="muted install-steps">
-        <li>Connecte-toi au Wi-Fi.</li>
-        <li>Ouvre les réglages du téléphone, puis « Données mobiles » ou « Réseau », puis « Ajouter une eSIM ».</li>
-        <li>Scanne ce QR code. Active la ligne à ton arrivée.</li>
+        <li>{t("Connecte-toi au Wi-Fi.")}</li>
+        <li>{t("Ouvre les réglages du téléphone, puis « Données mobiles » ou « Réseau », puis « Ajouter une eSIM ».")}</li>
+        <li>{t("Scanne ce QR code. Active la ligne à ton arrivée.")}</li>
       </ol>
       <div className="row">
-        {link && <a className="btn" href={link} target="_blank" rel="noopener noreferrer">Installer sur iPhone</a>}
-        {e.activation_code && <button className="btn btn-ghost" onClick={copy}>{copied ? "Code copié ✓" : "Copier le code d'activation"}</button>}
+        {link && <a className="btn" href={link} target="_blank" rel="noopener noreferrer">{t("Installer sur iPhone")}</a>}
+        {e.activation_code && <button className="btn btn-ghost" onClick={copy}>{copied ? t("Code copié ✓") : t("Copier le code d'activation")}</button>}
       </div>
-      <p className="muted note">Ne partage pas ce QR code : il ne fonctionne qu'une fois.</p>
+      <p className="muted note">{t("Ne partage pas ce QR code : il ne fonctionne qu'une fois.")}</p>
     </motion.div>
   );
 }

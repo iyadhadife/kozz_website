@@ -5,10 +5,11 @@ import re
 from decimal import Decimal
 
 import stripe
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import text
 
-from . import referral
+from . import fx, referral
+from . import security as sec
 from .db import engine
 from .fulfillment import esims_for_order, fulfilment_state
 from .invoicing import get_pdf
@@ -35,7 +36,28 @@ def _cents(amount: Decimal) -> int:
     return int((amount * 100).quantize(Decimal("1")))
 
 
-def start_checkout(order: dict, email: str) -> dict:
+STRIPE_LOCALES = {"ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru", "tr", "zh"}  # langues du site que Checkout sait afficher
+
+
+def stripe_customer_id(customer: dict, create: bool = True) -> str | None:
+    """Identifiant du « Customer » Stripe du compte (créé au besoin). C'est la seule donnée de paiement gardée chez nous :
+    les cartes elles-mêmes restent chez Stripe et sont relues à chaque fois."""
+    if client is None:
+        return None
+    with engine.connect() as c:
+        sid = c.execute(text("SELECT stripe_customer_id FROM customers WHERE id=:i"), {"i": customer["id"]}).scalar()
+    if sid or not create:
+        return sid
+    cu = client.v1.customers.create(
+        params={"email": customer["email"], "metadata": {"kozz_customer_id": str(customer["id"])}},
+        options={"idempotency_key": f"kozz-customer-{customer['id']}"},
+    )
+    with engine.begin() as c:
+        c.execute(text("UPDATE customers SET stripe_customer_id=:s WHERE id=:i AND stripe_customer_id IS NULL"), {"s": cu.id, "i": customer["id"]})
+        return c.execute(text("SELECT stripe_customer_id FROM customers WHERE id=:i"), {"i": customer["id"]}).scalar()
+
+
+def start_checkout(order: dict, email: str, customer: dict | None = None) -> dict:
     """Crée la session Stripe Checkout d'une commande déjà enregistrée (statut 'created').
     Les montants viennent de la base (jamais du navigateur). Stripe héberge la saisie de la carte."""
     order_id = order["order_id"]
@@ -47,8 +69,8 @@ def start_checkout(order: dict, email: str) -> dict:
     line_items = []
     for l in order["_lines"]:
         price_data = {
-            "currency": "eur",
-            "unit_amount": _cents(l["unit_price"]),  # prix TTC
+            "currency": order["_currency"].lower(),
+            "unit_amount": l["unit_minor"],  # prix TTC dans la devise choisie (conversion faite par le serveur)
             "product_data": {"name": l["label"]},
         }
         if l["kind"] == "subscription":
@@ -56,11 +78,31 @@ def start_checkout(order: dict, email: str) -> dict:
         line_items.append({"price_data": price_data, "quantity": l["qty"]})
 
     discounts = []
-    discount = order.get("_discount") or Decimal(0)
+    discount = order.get("_discount_minor") or 0
+    # Client connecté : Checkout affiche ses cartes déjà enregistrées chez Stripe et propose d'en enregistrer une nouvelle
+    # (Stripe les garde, pas nous). Invité : simple e-mail, rien n'est enregistré.
+    customer_params = {"customer_email": email}
+    if customer:
+        try:
+            sid = stripe_customer_id(customer)
+        except stripe.StripeError as e:
+            log.error("Stripe: création du client impossible: %s", e)
+            sid = None
+        if sid:
+            customer_params = {
+                "customer": sid,
+                "customer_update": {"name": "auto", "address": "auto"},
+                "saved_payment_method_options": {"payment_method_save": "enabled"},
+            }
+            if has_subscription:  # le mode abonnement enregistre déjà le moyen de paiement
+                customer_params.pop("saved_payment_method_options")
+    site_lang = (order.get("_site_lang") or "fr").lower()[:2]
+    if site_lang in STRIPE_LOCALES:
+        customer_params["locale"] = site_lang
     try:
         if discount > 0:  # remise parrainage : coupon à usage unique, créé pour cette commande
             coupon = client.v1.coupons.create(
-                params={"amount_off": _cents(discount), "currency": "eur", "duration": "once", "name": "Remise parrainage", "max_redemptions": 1},
+                params={"amount_off": discount, "currency": order["_currency"].lower(), "duration": "once", "name": "Remise parrainage", "max_redemptions": 1},
                 options={"idempotency_key": f"kozz-coupon-{order_id}"},
             )
             discounts = [{"coupon": coupon.id}]
@@ -70,12 +112,12 @@ def start_checkout(order: dict, email: str) -> dict:
                 "mode": "subscription" if has_subscription else "payment",
                 "line_items": line_items,
                 **({"discounts": discounts} if discounts else {}),
-                "customer_email": email,
+                **customer_params,
                 "client_reference_id": str(order_id),
                 "metadata": {"order_id": str(order_id)},
                 "success_url": f"{SITE_URL}/commande/succes?session_id={{CHECKOUT_SESSION_ID}}",
                 "cancel_url": f"{SITE_URL}/commande/annulee",
-                "locale": "fr",
+                "locale": customer_params.pop("locale", "fr"),  # langue du site (Stripe la prend en charge), français par défaut
                 # Coordonnées obligatoires sur la facture et pour le SMS : saisies et vérifiées par Stripe
                 "billing_address_collection": "required",
                 "phone_number_collection": {"enabled": True},
@@ -108,15 +150,17 @@ def mark_paid(session: dict) -> bool:
     order_id = int((session.get("metadata") or {}).get("order_id") or session.get("client_reference_id") or 0)
     with engine.begin() as c:
         order = c.execute(
-            text("SELECT id, total_ttc, status, stripe_session_id FROM orders WHERE id = :i FOR UPDATE"), {"i": order_id}
+            text("SELECT id, total_ttc, status, stripe_session_id, currency, charge_amount_minor FROM orders WHERE id = :i FOR UPDATE"), {"i": order_id}
         ).mappings().first()
         if not order or order["stripe_session_id"] != session["id"]:
             log.error("Webhook: commande/session incohérente (%s / %s)", order_id, session["id"])
             return False
         if order["status"] != "created":
             return True  # déjà traitée
-        if session["amount_total"] != _cents(Decimal(order["total_ttc"])):
-            log.error("Webhook: montant payé %s ≠ attendu %s pour la commande %s", session["amount_total"], order["total_ttc"], order_id)
+        expected = order["charge_amount_minor"] if order["charge_amount_minor"] is not None else _cents(Decimal(order["total_ttc"]))
+        if session["amount_total"] != expected or (session.get("currency") or "eur").upper() != order["currency"]:
+            log.error("Webhook: montant payé %s %s ≠ attendu %s %s pour la commande %s", session["amount_total"], session.get("currency"),
+                      expected, order["currency"], order_id)
             return False
         details = session.get("customer_details") or {}
         addr = details.get("address") or {}
@@ -189,7 +233,7 @@ def checkout_status(session_id: str):
         with engine.connect() as c:
             return c.execute(
                 text(
-                    "SELECT o.id, o.status, o.total_ttc, o.donation_amount, ca.id AS cause_id, ca.name, ca.unit, ca.emoji, ca.cost_per_unit "
+                    "SELECT o.id, o.status, o.total_ttc, o.currency, o.charge_amount_minor, o.donation_amount, ca.id AS cause_id, ca.name, ca.unit, ca.emoji, ca.cost_per_unit "
                     "FROM orders o JOIN causes ca ON ca.id = o.cause_id WHERE o.stripe_session_id = :s"
                 ),
                 {"s": session_id},
@@ -216,6 +260,8 @@ def checkout_status(session_id: str):
         "status": "paid" if paid else row["status"],
         "order_id": row["id"],
         "total": float(row["total_ttc"]),
+        "currency": row["currency"],
+        "charged": float(fx.from_minor(row["charge_amount_minor"], row["currency"])) if row["charge_amount_minor"] is not None else float(row["total_ttc"]),
         "donation": float(row["donation_amount"]),
         "cause": {"id": row["cause_id"], "name": row["name"], "unit": row["unit"], "emoji": row["emoji"]},
         "impact_units": float(row["donation_amount"] / row["cost_per_unit"]),
@@ -238,3 +284,72 @@ def checkout_invoice(session_id: str):
     if not pdf:
         raise HTTPException(404, "Facture indisponible")
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{number}.pdf"'})
+
+
+# ---------- Cartes enregistrées : tout reste chez Stripe ----------
+# Chez nous : uniquement customers.stripe_customer_id. Marque, 4 derniers chiffres et date d'expiration sont relus chez Stripe
+# à chaque affichage ; le numéro complet n'est jamais accessible (ni à Stripe API, ni à nous).
+@router.get("/me/cards")
+def my_cards(cust=Depends(sec.require_customer)):
+    if client is None:
+        return {"available": False, "cards": []}
+    sid = stripe_customer_id(cust, create=False)
+    if not sid:
+        return {"available": True, "cards": []}
+    try:
+        pms = client.v1.payment_methods.list(params={"customer": sid, "type": "card", "limit": 20})
+    except stripe.StripeError as e:
+        log.error("Stripe: lecture des cartes impossible: %s", e)
+        raise HTTPException(502, "Le service de paiement est indisponible, réessaie dans un instant.")
+    return {
+        "available": True,
+        "cards": [{"id": pm.id, "brand": pm.card.brand, "last4": pm.card.last4, "exp_month": pm.card.exp_month, "exp_year": pm.card.exp_year} for pm in pms.data],
+    }
+
+
+@router.delete("/me/cards/{pm_id}", status_code=204)
+def delete_card(pm_id: str, cust=Depends(sec.require_customer)):
+    if not re.fullmatch(r"pm_[A-Za-z0-9]{10,80}", pm_id) or client is None:
+        raise HTTPException(404, "Introuvable")
+    sid = stripe_customer_id(cust, create=False)
+    try:
+        pm = client.v1.payment_methods.retrieve(pm_id)
+        if not sid or pm.customer != sid:  # on ne détache que SES cartes
+            raise HTTPException(404, "Introuvable")
+        client.v1.payment_methods.detach(pm_id)
+    except stripe.StripeError as e:
+        log.error("Stripe: suppression de carte impossible: %s", e)
+        raise HTTPException(502, "Le service de paiement est indisponible, réessaie dans un instant.")
+
+
+@router.post("/me/cards/setup")
+def add_card(lang: str = "fr", cust=Depends(sec.require_customer)):
+    """Ouvre une page Stripe pour enregistrer une carte (sans paiement). Le numéro est saisi chez Stripe, pas chez nous."""
+    if client is None:
+        raise HTTPException(503, "Le paiement n'est pas encore configuré.")
+    try:
+        params = {
+            "mode": "setup", "customer": stripe_customer_id(cust), "currency": "eur",
+            "success_url": f"{SITE_URL}/profil?carte=ajoutee", "cancel_url": f"{SITE_URL}/profil",
+            "integration_identifier": INTEGRATION_ID, "managed_payments": {"enabled": False},
+        }
+        if lang[:2].lower() in STRIPE_LOCALES:
+            params["locale"] = lang[:2].lower()
+        session = client.v1.checkout.sessions.create(params=params)
+    except stripe.StripeError as e:
+        log.error("Stripe: session d'ajout de carte échouée: %s", e)
+        raise HTTPException(502, "Le service de paiement est indisponible, réessaie dans un instant.")
+    return {"url": session.url}
+
+
+def delete_stripe_customer(customer_id: int) -> None:
+    """Suppression de compte (RGPD) : on efface aussi le client Stripe et donc ses cartes enregistrées. Sans effet bloquant."""
+    if client is None:
+        return
+    try:
+        with engine.connect() as c:
+            sid = c.execute(text("SELECT stripe_customer_id FROM customers WHERE id=:i"), {"i": customer_id}).scalar()
+        if sid:
+            client.v1.customers.delete(sid)
+    except stripe.StripeError as e:
+        log.error("Stripe: suppression du client impossible: %s", e)

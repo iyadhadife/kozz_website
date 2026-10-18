@@ -6,7 +6,7 @@ from . import security as sec
 from .auth import router as auth_router
 from .legal import router as legal_router
 from .db import engine
-from . import payments
+from . import fx, payments
 from .orders import OrderIn, create_order
 from .pricing import MARGIN_RATE
 
@@ -14,6 +14,25 @@ app = FastAPI(title="Kozz API", root_path="")
 app.include_router(auth_router)
 app.include_router(payments.router)
 app.include_router(legal_router)
+
+
+@app.on_event("startup")
+def _start_fx() -> None:
+    fx.start_scheduler()  # taux de change : mise à jour au démarrage si besoin, puis toutes les 24 h
+
+
+@app.get("/api/fx")
+def fx_rates():
+    """Taux du jour pour afficher les prix : 1 EUR = rates[devise] (marge éventuelle incluse), plus les décimales et le pas d'arrondi."""
+    rates, updated = fx.current()
+    return {
+        "base": "EUR",
+        "updated_at": updated,
+        "rates": {k: float(v) for k, v in rates.items()},
+        "currencies": {k: {"decimals": fx.CURRENCIES[k][0], "step": fx.CURRENCIES[k][1]} for k in rates},
+        "sources": "BCE, Exchange Rate API",
+        "margin_pct": float(fx.margin_pct()),  # frais de conversion inclus dans les taux ci-dessus
+    }
 
 
 @app.get("/api/health")
@@ -129,4 +148,4 @@ def post_order(order: OrderIn, customer=Depends(sec.optional_customer)):
     Le statut passe à 'paid' uniquement quand Stripe le confirme (webhook)."""
     created = create_order(order, customer)
     email = customer["email"] if customer else order.email.lower()
-    return payments.start_checkout(created, email)
+    return payments.start_checkout(created, email, customer)
