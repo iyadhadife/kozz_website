@@ -750,3 +750,60 @@ input:focus, select:focus { transition: box-shadow .25s; box-shadow: 0 0 0 4px r
 .share-mail textarea { width: 100%; padding: .6rem .8rem; border-radius: 12px; border: 1px solid var(--line); background: var(--card2); color: var(--text); font: .9rem "Poppins", sans-serif; resize: vertical; }
 .share-mail small { line-height: 1.4; }
 .share-note { margin: .2rem .6rem .4rem; font-size: .82rem; }
+
+/* ===== Survol / appui homogènes sur TOUTES les cartes et contrôles (pas seulement les premières) =====
+   On anime les propriétés individuelles `translate` / `scale` : elles s'ajoutent au `transform` posé par framer-motion au lieu de l'écraser,
+   donc ça marche aussi sur les éléments déjà animés à l'entrée. Souris uniquement (hover: hover) ; désactivé si « réduire les animations ». */
+.kpi, .stat, .pre-card, .why-card, .tier, .total, .gauge, .compat-how, .dev, .cause, .esim-test, .chip, .pp-code, .share-menu a, .share-menu button, .alt, .menu-row, .assistant-card, .btn {
+  transition: translate .25s cubic-bezier(.22, 1, .36, 1), scale .2s ease, box-shadow .25s, border-color .2s, background-color .2s, color .2s;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .kpi:hover, .stat:hover, .pre-card:hover, .why-card:hover, .tier:hover, .compat-how:hover { translate: 0 -6px; border-color: var(--coral); box-shadow: 0 18px 40px -22px rgba(239,123,99,.55); }
+  .total:hover, .gauge:hover, .assistant-card:hover { translate: 0 -3px; box-shadow: 0 18px 40px -26px rgba(239,123,99,.45); }
+  .dev:hover { scale: 1.05; border-color: var(--coral); box-shadow: 0 10px 24px -14px rgba(239,123,99,.6); }
+  .cause:hover, .alt:hover, .menu-row:hover { translate: 0 -3px; }
+  .chip:hover { translate: 0 -2px; }
+  .esim-test:hover { translate: 0 -4px; box-shadow: 0 22px 44px -24px rgba(31,122,80,.6); }
+  .share-menu a:hover, .share-menu button:hover { translate: 4px 0; }
+  .btn:not(:disabled):hover { translate: 0 -2px; }
+  .pp-code:hover { scale: 1.03; }
+  /* détails à l'intérieur des cartes */
+  .kpi:hover .kpi-ico, .tier:hover .tier-icon, .pre-card:hover .pre-ico, .why-card:hover .why-ico { animation: kz-wiggle .6s ease; }
+  .stat:hover .mbar { filter: brightness(1.08); }
+  .stat:hover .top-bar > span { filter: saturate(1.25); }
+  .cause-card:hover .cphoto img { scale: 1.08; }
+  .cause-card:hover .cphoto-emoji { scale: 1.15; }
+  .cause-card:hover { border-color: var(--coral); box-shadow: 0 18px 40px -22px rgba(239,123,99,.55); }
+  .cphoto img, .cphoto-emoji { transition: scale .5s cubic-bezier(.22, 1, .36, 1); }
+  .toplist li:hover .top-bar > span { filter: brightness(1.1); }
+}
+/* appui (tactile compris) */
+.kpi:active, .stat:active, .pre-card:active, .tier:active, .dev:active, .cause:active, .chip:active, .alt:active, .btn:not(:disabled):active, .share-menu a:active, .share-menu button:active { scale: .97; }
+@keyframes kz-wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -12deg; } 60% { rotate: 10deg; } }
+.kpi-ico, .tier-icon, .pre-ico, .why-ico { display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .kpi, .stat, .pre-card, .why-card, .tier, .dev, .cause, .chip, .btn, .esim-test { transition: none; } }
+
+/* FAQ : réponses toujours dans le HTML, repliées en CSS (SEO + animation fluide) */
+.faq-item h3 { margin: 0; font-size: 1rem; }
+.faq-a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
+.faq-a > p { min-height: 0; overflow: hidden; margin: 0; padding: 0 1.2rem; color: var(--muted); transition: padding .28s ease; }
+.faq-item.open .faq-a { grid-template-rows: 1fr; }
+.faq-item.open .faq-a > p { padding: 0 1.2rem 1.1rem; }
+.faq-a a { color: var(--coral-ink); font-weight: 600; }
+.faq-group { margin-top: 2rem; scroll-margin-top: 90px; }
+.faq-group > h2 { font-size: 1.35rem; margin-bottom: .8rem; }
+.as-plan { font-size: 1.15rem; font-weight: 700; margin: 0; }
+/* Page partenaires */
+.snippet { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
+.snippet-head { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .6rem .8rem; }
+.snippet pre { margin: 0; padding: .7rem .9rem; background: var(--card2); overflow-x: auto; font-size: .8rem; }
+.snippets { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.badge-preview { padding: 1rem 0 .6rem; }
+.why-list { padding-left: 1.2rem; display: grid; gap: .5rem; margin: .4rem 0 1.2rem; }
+.section h2 + p, .section > h2 { scroll-margin-top: 90px; }
+/* titres h2 « de carte » (même rendu qu'avant, mais sans sauter de niveau sous le h1) */
+.section .steps li h2, .section .tier h2, .section .cat-block h2, .section .compat-how h2 { font-size: 1.17rem; line-height: 1.3; letter-spacing: 0; margin: 0 0 .5rem; }
+.section .cat-block h2 { color: var(--sand); margin-bottom: .8rem; }
+.section .faq-group > h2 { font-size: 1.35rem; margin: 0 0 .8rem; }
+.section .partner h2 { font-size: 1.45rem; line-height: 1.3; letter-spacing: -.01em; margin: 2rem 0 .6rem; }
+.section .partner p, .section .partner li { max-width: 760px; }

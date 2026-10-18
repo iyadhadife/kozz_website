@@ -21,7 +21,7 @@ export default function Destinations() {
   const setZone = (z) => (z ? setParams({ zone: z }) : setParams({}));
 
   return (
-    <Section title={t("Toutes les destinations")} subtitle={t("Filtre par région ou cherche un pays.")}>
+    <Section h1 title={t("Toutes les destinations")} subtitle={t("Filtre par région ou cherche un pays.")}>
       <div className="search dest-search">
         <span className="search-ico" aria-hidden="true">🔍</span>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && list.length === 1) nav(`/destinations/${list[0].id}`); }} placeholder={t("Où vas-tu ? Maroc, Thaïlande, Japon…")} aria-label={t("Rechercher une destination")} autoComplete="off" />

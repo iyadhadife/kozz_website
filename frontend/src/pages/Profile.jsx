@@ -464,7 +464,7 @@ export default function Profile() {
     {
       title: t("Assistance"),
       rows: [
-        { key: "aide", icon: "🛟", title: t("Centre d'aide"), sub: t("Guide, compatibilité, contact"), to: "/aide" },
+        { key: "aide", icon: "🛟", title: t("Centre d'aide"), sub: t("Guide, compatibilité, contact"), to: "/faq" },
         { key: "cgv", icon: "📄", title: t("Conditions d'utilisation"), sub: t("Informations légales"), to: "/cgv" },
         { key: "conf", icon: "🔒", title: t("Politique de confidentialité"), sub: t("Vos données"), to: "/confidentialite" },
         { key: "remb", icon: "💶", title: t("Politique de remboursement"), sub: t("Retours et remboursements"), to: "/remboursement" },

@@ -6,6 +6,7 @@ import DataEstimator from "../components/DataEstimator.jsx";
 import { DESTINATIONS, TIERS, eur, flag, fromPrice } from "../data.js";
 import { motion } from "framer-motion";
 
+import { breadcrumbJsonLd, destinationSeo, useSeo } from "../seo.js";
 import { t } from "../i18n.js";
 
 const STEPS = [
@@ -18,7 +19,17 @@ const STEPS = [
 // Fiche destination : en-tête avec atouts, forfaits détaillés, vérification du téléphone et estimation de data, 4 étapes.
 export default function Destination() {
   const { id } = useParams();
-  const dest = DESTINATIONS.find((d) => d.id === id); if (!dest) return <Navigate to="/destinations" replace />;
+  const dest = DESTINATIONS.find((d) => d.id === id);
+  const price = dest ? fromPrice(dest) : 0;
+  useSeo(dest ? {
+    ...destinationSeo(dest.name, eur(price)),
+    path: `/destinations/${dest.id}`,
+    jsonLd: { "@context": "https://schema.org", "@graph": [
+      { "@type": "Product", name: `eSIM ${dest.name}`, description: `Forfaits data eSIM pour voyager en ${dest.name}, activation en 1 minute.`, brand: { "@type": "Brand", name: "KozzGo" },
+        offers: { "@type": "AggregateOffer", priceCurrency: "EUR", lowPrice: String(price), highPrice: String(Math.max(...dest.prices)), offerCount: dest.prices.length, availability: "https://schema.org/InStock", url: `${location.origin}/destinations/${dest.id}` } },
+      breadcrumbJsonLd([["Accueil", "/"], ["Destinations", "/destinations"], [dest.name, `/destinations/${dest.id}`]]) ] },
+  } : {});
+  if (!dest) return <Navigate to="/destinations" replace />;
 
   return (
     <>

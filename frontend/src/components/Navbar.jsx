@@ -77,7 +77,7 @@ export default function Navbar() {
         <NavLink to="/kozz-monde">{t("Kozz Monde")}</NavLink>
         <NavLink to="/comment-ca-marche">{t("Comment ça marche")}</NavLink>
         <NavLink to="/impact">{t("Impact")}</NavLink>
-        <NavLink to="/aide">{t("Aide")}</NavLink>
+        <NavLink to="/faq">{t("Aide")}</NavLink>
       </nav>
 
       <div className="nav-right">

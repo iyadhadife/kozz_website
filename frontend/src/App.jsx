@@ -21,10 +21,13 @@ import Login from "./pages/Login.jsx";
 import Passport from "./pages/Passport.jsx";
 import { ForgotPassword, ResetPassword } from "./pages/PasswordReset.jsx";
 import Compatible from "./pages/Compatible.jsx";
+import FaqPage from "./pages/FaqPage.jsx";
+import Partner from "./pages/Partner.jsx";
+import RouteSeo from "./components/RouteSeo.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog, localizeData, setCurrencyState } from "./data.js";
 import { initialLang, loadLang, t } from "./i18n.js";
-import { HelpPage, HowPage, ImpactPage, MondePage } from "./pages/Pages.jsx";
+import { HowPage, ImpactPage, MondePage } from "./pages/Pages.jsx";
 
 // Remonte en haut à chaque page, ou défile vers l'ancre (#assistant…)
 function ScrollManager() {
@@ -82,6 +85,7 @@ export default function App() {
       <Shell>
       <ScrollProgress />
       <TextMotion paused={intro} />
+      <RouteSeo />
       <Navbar />
       <PageTransition>
         <Routes location={location}>
@@ -104,7 +108,9 @@ export default function App() {
           <Route path="/kozz-monde" element={<div className="page"><MondePage /></div>} />
           <Route path="/comment-ca-marche" element={<div className="page"><HowPage /></div>} />
           <Route path="/impact" element={<div className="page"><ImpactPage /></div>} />
-          <Route path="/aide" element={<div className="page"><HelpPage /></div>} />
+          <Route path="/faq" element={<FaqPage />} />
+          <Route path="/aide" element={<Navigate to="/faq" replace />} />
+          <Route path="/devenir-partenaire" element={<Partner />} />
           <Route path="*" element={<div className="page"><h2 style={{ padding: "6rem 1.5rem" }}>{t("Page introuvable")}</h2></div>} />
         </Routes>
       </PageTransition>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="KozzGo, eSIM de voyage solidaire">
+  <title>KozzGo, eSIM de voyage solidaire</title>
+  <rect x="1" y="1" width="238" height="62" rx="18" fill="#faf7f3" stroke="#ef7b63" stroke-width="2"/>
+  <g fill="#ef7b63"><circle cx="22" cy="22" r="4"/><circle cx="34" cy="22" r="4" fill="#f4a259"/><circle cx="22" cy="34" r="4" fill="#f4a259"/><circle cx="34" cy="34" r="4"/><circle cx="46" cy="34" r="4" fill="#f4a259"/><circle cx="34" cy="46" r="4" fill="#f4a259"/><circle cx="46" cy="46" r="4"/></g>
+  <text x="64" y="30" font-family="Poppins,Segoe UI,Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#1d1b20">Kozz<tspan fill="#ef7b63">Go</tspan></text>
+  <text x="64" y="48" font-family="Poppins,Segoe UI,Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#6b6570">eSIM de voyage solidaire</text>
+</svg>

@@ -39,7 +39,7 @@ export default function Assistant() {
 
   return (
     <div className="card assistant-card" id="assistant">
-      <h2 className="as-title">{t("L'assistant Kozz")}</h2>
+      <p className="as-title">{t("L'assistant Kozz")}</p>
       <p className="muted">{t("Dis-nous où tu vas : on te recommande un seul forfait, au meilleur prix.")}</p>
       <label>{t("Destination")}{" "}
         <select value={destId} onChange={(e) => setDestId(e.target.value)}>
@@ -67,7 +67,7 @@ export default function Assistant() {
               <span className="pill">{t("Recommandé pour toi")}</span>
               <div className="as-line">
                 <div>
-                  <h3>{rec.best.qty > 1 && `${rec.best.qty} × `}{gbLabel(rec.best.tier.gb)} · {daysLabel(rec.best.tier.days)}</h3>
+                  <p className="as-plan">{rec.best.qty > 1 && `${rec.best.qty} × `}{gbLabel(rec.best.tier.gb)} · {daysLabel(rec.best.tier.days)}</p>
                   <p className="muted">{dest.name} · {daysLabel(days)} · {t("conso estimée ≈ {n} Go", { n: fmtNum(rec.need) })}</p>
                 </div>
                 <p className="price">{eur(rec.best.total)}</p>

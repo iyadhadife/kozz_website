@@ -33,6 +33,16 @@
 		reverse_proxy backend:8000
 	}
 
+	# sitemap.xml et robots.txt générés par le backend (liste des destinations à jour, adresse du site depuis .env)
+	handle /sitemap.xml {
+		rewrite * /api/seo/sitemap.xml
+		reverse_proxy backend:8000
+	}
+	handle /robots.txt {
+		rewrite * /api/seo/robots.txt
+		reverse_proxy backend:8000
+	}
+
 	handle /api/* {
 		reverse_proxy backend:8000
 	}

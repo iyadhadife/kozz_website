@@ -34,7 +34,7 @@ export default function Compatible() {
   const month = updated ? new Intl.DateTimeFormat(currentLocale(), { month: "long", year: "numeric" }).format(new Date(updated + "-01")) : "";
 
   return (
-    <Section id="compatibles" title={t("Téléphones compatibles eSIM")} subtitle={t("Retrouve ton appareil dans la liste. Elle regroupe plus de {n} modèles, issus de listes publiques : la compatibilité peut varier selon le pays d'achat, la version et le blocage de l'opérateur.", { n: Math.floor((data?.length || 700) / 50) * 50 })}>
+    <Section id="compatibles" h1 title={t("Téléphones compatibles eSIM")} subtitle={t("Retrouve ton appareil dans la liste. Elle regroupe plus de {n} modèles, issus de listes publiques : la compatibilité peut varier selon le pays d'achat, la version et le blocage de l'opérateur.", { n: Math.floor((data?.length || 700) / 50) * 50 })}>
       <EsimTest />
       <input className="filter" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher un appareil ou une marque…")} aria-label={t("Rechercher un appareil ou une marque…")} />
       <div className="chips">
@@ -56,7 +56,7 @@ export default function Compatible() {
 
       {!data ? <p className="muted">{t("Chargement…")}</p> : groups.length === 0 ? <p className="muted">{t("Aucun appareil ne correspond à ta recherche.")}</p> : groups.map(([b, list]) => (
         <div key={b} className="cat-block">
-          <h3>{b === "Autres" ? t("Autres marques") : b} <small className="muted">{list.length}</small></h3>
+          <h2>{b === "Autres" ? t("Autres marques") : b} <small className="muted">{list.length}</small></h2>
           <ul className="dev-grid">
             {list.map((d) => <li key={d.n} className="dev"><span className="pc-check" aria-hidden="true">✓</span>{d.n}</li>)}
           </ul>
@@ -64,7 +64,7 @@ export default function Compatible() {
       ))}
 
       <div className="card compat-how">
-        <h3>{t("Comment vérifier ton téléphone")}</h3>
+        <h2>{t("Comment vérifier ton téléphone")}</h2>
         <ul>
           <li>{t("iPhone : Réglages > Données cellulaires > Ajouter une eSIM.")}</li>
           <li>{t("Samsung : Paramètres > Connexions > Gestionnaire de SIM > Ajouter une eSIM.")}</li>

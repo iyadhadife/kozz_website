@@ -4,8 +4,9 @@ import { Link } from "react-router-dom";
 import { t } from "../i18n.js";
 const COLS = [
   ["Nos eSIM", [["/destinations", "Toutes les destinations"], ["/destinations?zone=Maghreb", "Maghreb"], ["/destinations?zone=Europe", "Europe"], ["/destinations?zone=Asie", "Asie"], ["/kozz-monde", "Kozz Monde"]]],
-  ["Aide", [["/aide", "Centre d'aide"], ["/comment-ca-marche", "Installer mon eSIM"], ["/telephones-compatibles", "Compatibilité"]]],
-  ["KozzGo", [["/profil", "Mon compte"], ["/comment-ca-marche", "Comment ça marche"], ["/impact", "Impact & causes"], ["/", "Accueil"]]],
+  ["Aide", [["/faq", "FAQ eSIM"], ["/comment-ca-marche", "Installer mon eSIM"], ["/telephones-compatibles", "Téléphones compatibles eSIM"], ["/remboursement", "Remboursement"]]],
+  ["Destinations populaires", [["/destinations/ma", "eSIM Maroc"], ["/destinations/es", "eSIM Espagne"], ["/destinations/it", "eSIM Italie"], ["/destinations/tr", "eSIM Turquie"], ["/destinations/th", "eSIM Thaïlande"], ["/destinations/jp", "eSIM Japon"], ["/destinations/us", "eSIM États-Unis"]]],
+  ["KozzGo", [["/profil", "Mon compte"], ["/comment-ca-marche", "Comment ça marche"], ["/impact", "Impact & causes"], ["/devenir-partenaire", "Devenir partenaire"], ["/", "Accueil"]]],
 ];
 
 export default function Footer() {

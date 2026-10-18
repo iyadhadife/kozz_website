@@ -5,7 +5,8 @@ import Hero from "../components/Hero.jsx";
 import Section from "../components/Section.jsx";
 import DestCard from "../components/DestCard.jsx";
 import HowItWorks from "../components/HowItWorks.jsx";
-import Faq from "../components/Faq.jsx";
+import FaqList from "../components/FaqList.jsx";
+import { FAQ_HOME } from "../faqContent.js";
 import WhyKozz from "../components/WhyKozz.jsx";
 import GlobalImpact from "../components/GlobalImpact.jsx";
 import { CAUSES, DESTINATIONS, MONDE, POPULAR, ZONES, eur, fmtNum, FAQ } from "../data.js";
@@ -87,8 +88,8 @@ export default function Home() {
       <GlobalImpact />
       <ImpactTeaser />
       <Section id="faq" title={t("Questions fréquentes")}>
-        <Faq items={FAQ.slice(0, 5)} />
-        <Link to="/aide" className="more">{t("Tout le centre d'aide →")}</Link>
+        <FaqList items={FAQ_HOME} />
+        <Link to="/faq" className="more">{t("Tout le centre d'aide →")}</Link>
       </Section>
     </>
   );
