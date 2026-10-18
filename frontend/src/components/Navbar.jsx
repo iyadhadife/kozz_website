@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import CurrencyPicker from "./CurrencyPicker.jsx";
 import LanguagePicker from "./LanguagePicker.jsx";
 import { DESTINATIONS, POPULAR, ZONES, flag } from "../data.js";
@@ -41,9 +41,22 @@ export default function Navbar() {
   const { cart, setOpen, user } = useStore();
   const [mega, setMega] = useState(false);
   const [mobile, setMobile] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
+  const { scrollY } = useScroll();
 
+  // La barre se range quand on descend la page et revient dès qu'on remonte
+  useMotionValueEvent(scrollY, "change", (y) => {
+    const prev = scrollY.getPrevious() ?? 0;
+    setScrolled(y > 12);
+    setHidden(y > 140 && y > prev && !mobile);
+  });
   useEffect(() => { setMega(false); setMobile(false); }, [pathname]);
+  useEffect(() => {
+    document.body.style.overflow = mobile ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobile]);
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && setMega(false);
     addEventListener("keydown", esc);
@@ -51,7 +64,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <motion.header className="nav" initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 18 }}>
+    <motion.header className={`nav ${scrolled ? "scrolled" : ""}`} initial={{ y: -80, opacity: 0 }} animate={{ y: hidden ? -90 : 0, opacity: 1 }} transition={{ type: "spring", stiffness: 220, damping: 26 }}>
       <Link to="/" className="brand"><img src="/logo.jpg" alt={t("KozzGo — accueil")} /></Link>
 
       <nav className="nav-links" aria-label={t("Navigation principale")}>
@@ -66,32 +79,48 @@ export default function Navbar() {
       </nav>
 
       <div className="nav-right">
-        <LanguagePicker compact />
-        <CurrencyPicker compact />
+        <span className="nav-pickers"><LanguagePicker compact /><CurrencyPicker compact /></span>
         {user ? (
           <Link to="/profil" className="avatar avatar-sm" aria-label={t("Mon profil")} title={user.email}>
             {(user.first_name || user.email)[0].toUpperCase()}
           </Link>) : user === null ? ( <Link to="/connexion" className="btn btn-ghost nav-login">{t("Connexion")}</Link>
         ) : null}
-        <button className="btn btn-ghost" onClick={() => setOpen(true)} aria-label={t("Ouvrir le panier")}>
+        <button className="btn btn-ghost nav-cart" onClick={() => setOpen(true)} aria-label={t("Ouvrir le panier")}>
           {t("Panier")}
           {cart.length > 0 && (
             <motion.span key={cart.length} className="badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>{cart.length}</motion.span>
           )}
         </button>
-        <button className="burger" aria-label={t("Menu")} aria-expanded={mobile} onClick={() => setMobile((m) => !m)}>{mobile ? "✕" : "☰"}</button>
+        <button className="burger" aria-label={t("Menu")} aria-expanded={mobile} onClick={() => setMobile((m) => !m)}>
+          <span className={`burger-ico ${mobile ? "open" : ""}`}><i /><i /><i /></span>
+        </button>
       </div>
 
       <AnimatePresence>
         {mobile && (
-          <motion.nav className="mobile-menu" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-            <Link to="/destinations">{t("Destinations")}</Link>
-            <Link to="/kozz-monde">{t("Kozz Monde")}</Link>
-            <Link to="/comment-ca-marche">{t("Comment ça marche")}</Link>
-            <Link to="/impact">{t("Impact")}</Link>
-            <Link to="/aide">{t("Aide")}</Link>
-            <Link to={user ? "/profil" : "/connexion"}>{user ? t("Mon profil") : t("Connexion")}</Link>
-          </motion.nav>
+          <>
+            <motion.div className="sheet-back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobile(false)} />
+            <motion.nav
+              className="mobile-menu"
+              initial={{ clipPath: "inset(0 0 100% 0)" }}
+              animate={{ clipPath: "inset(0 0 0% 0)" }}
+              exit={{ clipPath: "inset(0 0 100% 0)" }}
+              transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {[["/destinations", "Destinations"], ["/kozz-monde", "Kozz Monde"], ["/comment-ca-marche", "Comment ça marche"], ["/impact", "Impact"], ["/aide", "Aide"]].map(([to, l], i) => (
+                <motion.div key={to} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08 + i * 0.05, duration: 0.35 }}>
+                  <Link to={to}><span>{t(l)}</span><span aria-hidden="true">→</span></Link>
+                </motion.div>
+              ))}
+              <motion.div initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.34, duration: 0.35 }}>
+                <Link to={user ? "/profil" : "/connexion"}><span>{user ? t("Mon profil") : t("Connexion")}</span><span aria-hidden="true">→</span></Link>
+              </motion.div>
+              <motion.div className="menu-pickers" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.35 }}>
+                <LanguagePicker />
+                <CurrencyPicker />
+              </motion.div>
+            </motion.nav>
+          </>
         )}
       </AnimatePresence>
     </motion.header>

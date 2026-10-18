@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import TabBar from "./components/TabBar.jsx";
+import QrIntro, { introSeen } from "./components/QrIntro.jsx";
+import TextMotion from "./components/TextMotion.jsx";
+import ScrollProgress from "./components/ScrollProgress.jsx";
 import { StoreProvider, useStore } from "./store.jsx";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -44,18 +49,37 @@ function Shell({ children }) {
   return <div key={`${currency}-${lang}-${fx ? "fx" : "nofx"}`}>{children}</div>;
 }
 
+// Chaque page entre en fondu + léger glissement ; la clé suit l'URL (pas les paramètres ni l'ancre)
+function PageTransition({ children }) {
+  const { pathname } = useLocation();
+  return (
+    <motion.main key={pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}>
+      {children}
+    </motion.main>
+  );
+}
+
 export default function App() {
+  const location = useLocation();
   const [ready, setReady] = useState(false);
+  const [intro, setIntro] = useState(() => !introSeen() && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const endIntro = useCallback(() => setIntro(false), []);
   useEffect(() => {
     Promise.all([loadCatalog(), loadLang(initialLang()).then((l) => setCurrencyState({ locale: l.locale }))]).then(() => localizeData()).finally(() => setReady(true));
   }, []);
   if (!ready) return <div className="splash"><img src="/logo.jpg" alt={t("KozzGo")} /></div>; return ( <StoreProvider>
       <ReferralLanding />
       <ScrollManager />
+      <MotionConfig reducedMotion="user">
+      <AnimatePresence>
+        {intro && <motion.div key="intro" className="qr-intro-wrap" exit={{ opacity: 0 }} transition={{ duration: 0.45 }}><QrIntro onDone={endIntro} /></motion.div>}
+      </AnimatePresence>
       <Shell>
+      <ScrollProgress />
+      <TextMotion paused={intro} />
       <Navbar />
-      <main>
-        <Routes>
+      <PageTransition>
+        <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/commande/succes" element={<CheckoutSuccess />} />
           <Route path="/commande/annulee" element={<CheckoutCanceled />} />
@@ -74,11 +98,13 @@ export default function App() {
           <Route path="/aide" element={<div className="page"><HelpPage /></div>} />
           <Route path="*" element={<div className="page"><h2 style={{ padding: "6rem 1.5rem" }}>{t("Page introuvable")}</h2></div>} />
         </Routes>
-      </main>
+      </PageTransition>
       <Footer />
       <Cart />
       <Chat />
+      <TabBar />
       </Shell>
+      </MotionConfig>
     </StoreProvider>
   );
 }

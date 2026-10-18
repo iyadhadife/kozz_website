@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { api } from "../api.js";
 import { CAUSES, FX_STATE, donation, eur, eurLine, fmtMinor, fmtNum, impactUnits, itemLabel, minorOf } from "../data.js";
 import { useStore } from "../store.jsx";
@@ -44,17 +44,40 @@ export default function Cart() {
       setBusy(false);
     }
   };
-  const close = () => setOpen(false); return ( <AnimatePresence>
+  const close = () => setOpen(false);
+  const rtl = document.documentElement.dir === "rtl";
+  const [phone, setPhone] = useState(() => matchMedia("(max-width: 720px)").matches);
+  useEffect(() => {
+    const mq = matchMedia("(max-width: 720px)");
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+  const drag = useDragControls();
+  // Mobile : feuille qui monte du bas, se ferme en la tirant vers le bas par la poignée. Bureau : tiroir latéral.
+  const from = phone ? { y: "100%" } : { x: rtl ? "-100%" : "100%" };
+  return ( <AnimatePresence>
       {open && (
         <>
           <motion.div className="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.aside
             className="drawer"
-            initial={{ x: document.documentElement.dir === "rtl" ? "-100%" : "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: document.documentElement.dir === "rtl" ? "-100%" : "100%" }}
+            initial={from}
+            animate={{ x: 0, y: 0 }}
+            exit={from}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
+            drag={phone ? "y" : false}
+            dragControls={drag}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={(_, info) => { if (info.offset.y > 110 || info.velocity.y > 600) close(); }}
           >
+            {phone && <div className="grab" onPointerDown={(e) => drag.start(e)} aria-hidden="true"><i /></div>}
             <button className="close" onClick={close} aria-label={t("Fermer")}>✕</button>
 
               <>
@@ -124,7 +147,7 @@ export default function Cart() {
                     )}
                     <div className="totalrow"><span>{t("Total TTC")}</span><strong>{netText}</strong></div>
                     {error && <p className="error" role="alert">{error}</p>}
-                    <button className="btn" disabled={!emailOk || busy} onClick={pay}>{busy ? t("Redirection vers le paiement…") : t("Payer {amount}", { amount: netText })}</button>
+                    <button className="btn pay-cta" disabled={!emailOk || busy} onClick={pay}>{busy ? t("Redirection vers le paiement…") : t("Payer {amount}", { amount: netText })}</button>
                     <p className="muted secure">{t("🔒 Paiement sécurisé par Stripe. Tes données de carte ne transitent jamais par KozzGo.")}</p>
                   </>
                 )}
