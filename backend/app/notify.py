@@ -19,7 +19,7 @@ from sqlalchemy import text
 
 from decimal import Decimal
 
-from . import legal, texts
+from . import emailkit, legal, texts
 from .db import engine
 from .fulfillment import esims_for_order
 from .invoicing import get_pdf
@@ -129,11 +129,16 @@ def build_email(o: dict, esims: list[dict], invoice_no: str | None) -> tuple[str
     t = [L("hello", name=" " + name if name else ""), "", L("thanks", id=o["id"], total=money(o["total"])), "", *recap, ""]
     if charged:
         t += [charged, ""]
-    h = [f"<p>{escape(L('hello', name=' ' + name if name else ''))}</p>",
-         f"<p>{escape(L('thanks', id=o['id'], total=money(o['total'])))}</p>",
-         "<ul>" + "".join(f"<li>{escape(qty(i))}{escape(i['label'])}</li>" for i in o["items"]) + "</ul>"]
+    rows = "".join(
+        f'<tr><td style="padding:10px 0;border-bottom:1px solid #f0e9e0;font:600 15px Poppins,Arial,sans-serif;color:#1d1b20">{escape(qty(i))}{escape(i["label"])}</td>'
+        f'<td align="right" style="padding:10px 0;border-bottom:1px solid #f0e9e0;font:600 15px Poppins,Arial,sans-serif;color:#1d1b20;white-space:nowrap">{escape(money(i["qty"] * i["unit_price"]))}</td></tr>'
+        for i in o["items"])
+    h = [emailkit.p(escape(L("hello", name=" " + name if name else ""))),
+         emailkit.p(escape(L("thanks", id=o["id"], total=money(o["total"])))),
+         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;background:#faf7f3;border-radius:14px"><tr><td style="padding:6px 18px">'
+         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}</table></td></tr></table>']
     if charged:
-        h.append(f"<p>{escape(charged)}</p>")
+        h.append(emailkit.p(escape(charged), muted=True))
     inline = []
     for n, e in enumerate(esims):
         if e["status"] == "failed" or (not e["qr_png"] and not e["activation_code"]):
@@ -143,21 +148,21 @@ def build_email(o: dict, esims: list[dict], invoice_no: str | None) -> tuple[str
         t += [L("install_title", label=e["label"]), L("install_steps"),
               L("activation", code=e["activation_code"]) if e["activation_code"] else "", L("iphone", link=e["ios_tap_link"]) if e["ios_tap_link"] else "",
               L("find_qr", link=link), ""]
-        h.append(f"<h3>{escape(e['label'])}</h3><ol>{L('html_steps')}</ol>")
+        h.append(f'<h3 style="margin:22px 0 6px;font:700 19px Poppins,Arial,sans-serif;color:#d4553c">{escape(e["label"])}</h3><ol style="margin:0 0 10px;padding-left:20px;line-height:1.7">{L("html_steps")}</ol>')
         if e["qr_png"]:
             cid = f"qr{n}"
             inline.append((cid, base64.b64decode(e["qr_png"])))
-            h.append(f'<p><img src="cid:{cid}" alt="{escape(L("qr_alt"))}" width="200" height="200" style="background:#fff;padding:8px"></p>')
+            h.append(f'<p style="text-align:center;margin:14px 0"><img src="cid:{cid}" alt="{escape(L("qr_alt"))}" width="200" height="200" style="background:#fff;padding:10px;border:2px dashed #ef7b63;border-radius:16px"></p>')
         if e["activation_code"]:
-            h.append(f"<p>{escape(L('manual_code'))} <code>{escape(e['activation_code'])}</code></p>")
+            h.append(emailkit.p(f"{escape(L('manual_code'))} <code style='background:#faf7f3;padding:3px 8px;border-radius:6px;font-weight:700'>{escape(e['activation_code'])}</code>"))
         if e["ios_tap_link"] and e["ios_tap_link"].startswith("https://"):
-            h.append(f'<p><a href="{escape(e["ios_tap_link"])}">{escape(L("iphone_link"))}</a></p>')
-        h.append(f"<p><small>{escape(L('qr_warn'))}</small></p>")
+            h.append(emailkit.button(L("iphone_link"), e["ios_tap_link"]))
+        h.append(emailkit.p(escape(L("qr_warn")), muted=True))
     if invoice_no:
         t += [L("inv_attached", no=invoice_no), ""]
-        h.append(f"<p>{escape(L('inv_attached', no=invoice_no))}</p>")
+        h.append(emailkit.p("📎 " + escape(L("inv_attached", no=invoice_no))))
     t += [L("impact", cause=o["cause"]), ""]
-    h.append(f"<p>{escape(L('impact', cause=o['cause']))}</p>")
+    h.append(f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:10px 0"><tr><td style="background:#fdeee9;border-radius:14px;padding:14px 18px;font:600 15px/1.5 Poppins,Arial,sans-serif;color:#d4553c">💚 {escape(L("impact", cause=o["cause"]))}</td></tr></table>')
 
     legal_t = [L("legal_title"),
                L("withdrawal_waived", date=waiver) if waiver else L("withdrawal_see"),
@@ -166,8 +171,9 @@ def build_email(o: dict, esims: list[dict], invoice_no: str | None) -> tuple[str
                L("mediator", m=s["mediator"]) if s["mediator"] else "",
                f"{s['name']} · {s['legal_form']} · SIREN {s['siren']} · {s['address']}" if s["name"] else "", L("contact", e=s["email"]) if s["email"] else ""]
     t += [l for l in legal_t if l]
-    h.append("<hr><p><small>" + "<br>".join(escape(l) for l in legal_t if l) + "</small></p>")
-    return subject, "\n".join(t), "<html><body style='font-family:Arial,sans-serif;max-width:620px'>" + "".join(h) + "</body></html>", inline
+    h.append('<div style="margin-top:22px;padding-top:14px;border-top:1px solid #f0e9e0;font:400 12px/1.6 Poppins,Arial,sans-serif;color:#6b6570">' + "<br>".join(escape(l) for l in legal_t if l) + "</div>")
+    inline.append(("logo", emailkit.logo_png()))
+    return subject, "\n".join(t), emailkit.layout(subject, "".join(h), preheader=L("thanks", id=o["id"], total=money(o["total"])), lang=lang), inline
 
 
 def build_sms(o: dict, esims: list[dict]) -> str:

@@ -9,13 +9,14 @@ import hashlib
 import logging
 import os
 import secrets
+from html import escape
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from . import notify, texts
+from . import emailkit, notify, texts
 from . import security as sec
 from .db import engine
 
@@ -44,11 +45,14 @@ def _digest(token: str) -> str:
 def _send_link(email: str, token: str, lang: str | None) -> None:
     lg = texts.lang_for(lang)
     link = f"{SITE_URL}/mot-de-passe/reinitialiser?token={token}"
-    html = (f'<p>{texts.T(lg, "reset_html1")}</p>'
-            f'<p><a href="{link}" style="display:inline-block;background:#ef7b63;color:#1a1010;padding:12px 22px;border-radius:999px;font-weight:700;text-decoration:none">{texts.T(lg, "reset_btn")}</a></p>'
-            f'<p style="color:#666">{texts.T(lg, "reset_html2", min=TTL_MIN)}</p><p style="color:#666">{texts.T(lg, "reset_html3")}</p>')
+    html = emailkit.layout(
+        texts.T(lg, "reset_subject"),
+        emailkit.p(texts.T(lg, "reset_html1")) + emailkit.button(texts.T(lg, "reset_btn"), link)
+        + emailkit.p(texts.T(lg, "reset_html2", min=TTL_MIN), muted=True) + emailkit.p(texts.T(lg, "reset_html3"), muted=True)
+        + f'<p style="margin:14px 0 0;font:400 12px/1.5 monospace;color:#6b6570;word-break:break-all">{link}</p>',
+        preheader=texts.T(lg, "reset_html1"), lang=lg)
     try:
-        notify.send_email(email, texts.T(lg, "reset_subject"), texts.T(lg, "reset_text", min=TTL_MIN, link=link), html)
+        notify.send_email(email, texts.T(lg, "reset_subject"), texts.T(lg, "reset_text", min=TTL_MIN, link=link), html, inline=[("logo", emailkit.logo_png())])
     except notify.NotConfigured:
         log.error("Mot de passe oublié : SMTP non configuré, e-mail non envoyé")
     except Exception as e:  # noqa: BLE001 — jamais d'erreur visible : la réponse est identique que le compte existe ou non
@@ -59,7 +63,8 @@ def _send_changed(email: str, lang: str | None) -> None:
     lg = texts.lang_for(lang)
     body = texts.T(lg, "changed_text")
     try:
-        notify.send_email(email, texts.T(lg, "changed_subject"), body, "<p>" + body.replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>")
+        inner = "".join(emailkit.p(escape(part).replace("\n", "<br>")) for part in body.split("\n\n"))
+        notify.send_email(email, texts.T(lg, "changed_subject"), body, emailkit.layout(texts.T(lg, "changed_subject"), inner, lang=lg), inline=[("logo", emailkit.logo_png())])
     except Exception as e:  # noqa: BLE001
         log.error("Envoi de l'alerte de changement échoué: %s", type(e).__name__)
 

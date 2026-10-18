@@ -8,6 +8,7 @@ from .legal import router as legal_router
 from .phone_verify import router as phone_router
 from .og import router as og_router
 from .password_reset import router as reset_router
+from .share import router as share_router
 from .db import engine
 from . import fx, payments
 from .orders import OrderIn, create_order
@@ -20,6 +21,7 @@ app.include_router(legal_router)
 app.include_router(phone_router)
 app.include_router(og_router)
 app.include_router(reset_router)
+app.include_router(share_router)
 
 
 @app.on_event("startup")

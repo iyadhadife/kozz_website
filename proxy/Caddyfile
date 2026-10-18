@@ -21,7 +21,7 @@
 		path /
 	}
 	handle @crawler_home {
-		rewrite * /api/og/home
+		rewrite * /api/og/home?{query}
 		reverse_proxy backend:8000
 	}
 	@crawler {

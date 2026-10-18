@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from . import notify, referral, texts
+from . import emailkit, notify, referral, texts
 from . import security as sec
 from .db import engine
 from .fulfillment import esims_for_order, fulfilment_state
@@ -156,10 +156,12 @@ def _send_code(email: str, code: str, lang: str | None = None) -> None:
     lg = texts.lang_for(lang)
     subject = texts.T(lg, "code_subject", code=code)
     text_body = texts.T(lg, "code_text", code=code, min=CODE_TTL_MIN)
-    html_body = (f'<p>{texts.T(lg, "code_html1")}</p><p style="font-size:28px;letter-spacing:6px;font-weight:700">{code}</p>'
-                 f'<p>{texts.T(lg, "code_html2", min=CODE_TTL_MIN)}</p><p style="color:#666">{texts.T(lg, "code_html3")}</p>')
+    html_body = emailkit.layout(
+        texts.T(lg, "code_html1").rstrip(" :"),
+        emailkit.code_box(code) + emailkit.p(texts.T(lg, "code_html2", min=CODE_TTL_MIN), muted=True) + emailkit.p(texts.T(lg, "code_html3"), muted=True),
+        preheader=subject, lang=lg)
     try:
-        notify.send_email(email, subject, text_body, html_body)
+        notify.send_email(email, subject, text_body, html_body, inline=[("logo", emailkit.logo_png())])
     except notify.NotConfigured:
         raise HTTPException(503, "L'envoi d'e-mails n'est pas encore configuré : impossible de vérifier ton adresse.")
     except Exception as e:  # noqa: BLE001

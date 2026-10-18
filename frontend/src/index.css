@@ -745,3 +745,8 @@ input:focus, select:focus { transition: box-shadow .25s; box-shadow: 0 0 0 4px r
 /* Mot de passe oublié */
 .forgot-link { justify-self: end; margin-top: -.3rem; font-size: .85rem; color: var(--coral-ink); text-decoration: none; font-weight: 600; }
 .forgot-link:hover { text-decoration: underline; }
+.share-mail { display: grid; gap: .6rem; padding: .6rem; min-width: min(320px, 78vw); }
+.share-mail label { display: grid; gap: .25rem; font-size: .85rem; font-weight: 600; }
+.share-mail textarea { width: 100%; padding: .6rem .8rem; border-radius: 12px; border: 1px solid var(--line); background: var(--card2); color: var(--text); font: .9rem "Poppins", sans-serif; resize: vertical; }
+.share-mail small { line-height: 1.4; }
+.share-note { margin: .2rem .6rem .4rem; font-size: .82rem; }
