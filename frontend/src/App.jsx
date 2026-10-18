@@ -19,6 +19,7 @@ import { CheckoutCanceled, CheckoutSuccess } from "./pages/Checkout.jsx";
 import { Cgv, Confidentialite, MentionsLegales, Remboursement, Retractation } from "./pages/Legal.jsx";
 import Login from "./pages/Login.jsx";
 import Passport from "./pages/Passport.jsx";
+import { ForgotPassword, ResetPassword } from "./pages/PasswordReset.jsx";
 import Compatible from "./pages/Compatible.jsx";
 import Profile from "./pages/Profile.jsx";
 import { loadCatalog, localizeData, setCurrencyState } from "./data.js";
@@ -93,6 +94,8 @@ export default function App() {
           <Route path="/retractation" element={<Retractation />} />
           <Route path="/remboursement" element={<Remboursement />} />
           <Route path="/connexion" element={<Login />} />
+          <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+          <Route path="/mot-de-passe/reinitialiser" element={<ResetPassword />} />
           <Route path="/profil" element={<Profile />} />
           <Route path="/destinations" element={<Destinations />} />
           <Route path="/passeport/:code" element={<Passport />} />

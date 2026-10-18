@@ -1,6 +1,6 @@
 import Logo from "../components/Logo.jsx";
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStore } from "../store.jsx";
 
@@ -186,6 +186,7 @@ export default function Login() {
             </label>
           )}
 
+          {!isRegister && <Link to="/mot-de-passe-oublie" state={{ email }} className="forgot-link">{t("Mot de passe oublié ?")}</Link>}
           {error && <p className="error" role="alert">{error}</p>}
           <button className="btn" disabled={!valid || busy}>
             {busy ? "…" : isRegister ? t("Recevoir mon code") : t("Me connecter")}
