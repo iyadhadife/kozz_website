@@ -1,3 +1,4 @@
+import BuyButton from "./BuyButton.jsx";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import RangePicker, { addDaysIso, nightsDays, todayIso } from "./RangePicker.jsx";
@@ -72,7 +73,7 @@ export default function Assistant() {
                 </div>
                 <p className="price">{eur(rec.best.total)}</p>
               </div>
-              <button className="btn" onClick={() => addPlan(rec.best)}>{t("Ajouter au panier")}</button>
+              <BuyButton onClick={() => addPlan(rec.best)}>{t("Ajouter au panier")}</BuyButton>
               {rec.alts.length > 0 && (
                 <div className="alts">
                   <span className="lbl">{t("Alternatives")}</span>

@@ -18,7 +18,8 @@ from .post_payment import process_in_background
 log = logging.getLogger("kozz.payments")
 router = APIRouter(prefix="/api")
 
-SITE_URL = os.getenv("SITE_URL", "https://localhost").rstrip("/")
+from .site import SITE_URL
+from .features import require_purchases
 WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 # Libellé de ce tunnel dans le Dashboard Stripe (API >= 2026-03-25 : suffixe de 8 lettres aléatoires)
 INTEGRATION_ID = "kozzgo-checkout-qhvtbmxe"
@@ -325,6 +326,7 @@ def delete_card(pm_id: str, cust=Depends(sec.require_customer)):
 @router.post("/me/cards/setup")
 def add_card(lang: str = "fr", cust=Depends(sec.require_customer)):
     """Ouvre une page Stripe pour enregistrer une carte (sans paiement). Le numéro est saisi chez Stripe, pas chez nous."""
+    require_purchases()
     if client is None:
         raise HTTPException(503, "Le paiement n'est pas encore configuré.")
     try:

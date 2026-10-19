@@ -10,8 +10,9 @@ from .og import router as og_router
 from .password_reset import router as reset_router
 from .share import router as share_router
 from .seo import router as seo_router
+from .admin import router as admin_router
 from .db import engine
-from . import fx, payments
+from . import features, fx, payments
 from .orders import OrderIn, create_order
 from .pricing import MARGIN_RATE
 
@@ -24,6 +25,7 @@ app.include_router(og_router)
 app.include_router(reset_router)
 app.include_router(share_router)
 app.include_router(seo_router)
+app.include_router(admin_router)
 
 
 @app.on_event("startup")
@@ -43,6 +45,12 @@ def fx_rates():
         "sources": "BCE, Exchange Rate API",
         "margin_pct": float(fx.margin_pct()),  # frais de conversion inclus dans les taux ci-dessus
     }
+
+
+@app.get("/api/config")
+def public_config():
+    """Réglages publics lus par le site (ex. achats ouverts ou « bientôt disponible »)."""
+    return {"purchases_enabled": features.purchases_enabled()}
 
 
 @app.get("/api/health")
@@ -185,7 +193,7 @@ def catalog():
     }
 
 
-@app.post("/api/orders", status_code=201)
+@app.post("/api/orders", status_code=201, dependencies=[Depends(features.require_purchases)])
 def post_order(order: OrderIn, customer=Depends(sec.optional_customer)):
     """Enregistre la commande (statut 'created' = en attente) puis ouvre une session Stripe Checkout.
     Le statut passe à 'paid' uniquement quand Stripe le confirme (webhook)."""

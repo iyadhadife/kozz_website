@@ -1,3 +1,4 @@
+import BuyButton from "./BuyButton.jsx";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { recommend } from "./Assistant.jsx";
@@ -42,7 +43,7 @@ export default function DataEstimator({ dest }) {
             <span className="de-plan">{best.qty > 1 && `${best.qty} × `}{gbLabel(tier.gb)} · {daysLabel(tier.days)} · {eur(best.total)}</span>
           </motion.div>
         </AnimatePresence>
-        <button className="btn" onClick={choose}>{t("Choisir ce forfait")}</button>
+        <BuyButton onClick={choose}>{t("Choisir ce forfait")}</BuyButton>
       </div>
       <p className="muted pre-note">{t("Une estimation approximative pour un usage courant. La vidéo et le partage de connexion consomment le plus.")}</p>
     </div>

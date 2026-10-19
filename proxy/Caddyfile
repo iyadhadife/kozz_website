@@ -2,7 +2,8 @@
 	email {$ACME_EMAIL}
 }
 
-{$DOMAIN} {
+# Tout le site est défini une seule fois (snippet), puis servi sous l'adresse normale et, si NGROK=true, sous l'adresse ngrok.
+(site) {
 	encode zstd gzip
 
 	# En-têtes de sécurité. Le paiement se fait sur checkout.stripe.com (redirection) : aucun script Stripe sur nos pages.
@@ -26,7 +27,7 @@
 	}
 	@bot_pages {
 		header_regexp User-Agent (?i)(gptbot|chatgpt-user|oai-searchbot|claudebot|claude-user|claude-searchbot|anthropic-ai|perplexitybot|perplexity-user|ccbot|bytespider|amazonbot|duckassistbot|meta-externalagent|cohere-ai|diffbot|youbot|bingbot|duckduckbot|yandexbot|baiduspider|applebot)
-		path /destinations /destinations/* /faq /impact /comment-ca-marche /kozz-monde /telephones-compatibles /devenir-partenaire /cgv /mentions-legales /confidentialite /retractation /remboursement
+		path /destinations /destinations/* /blog /blog/* /a-propos /faq /impact /comment-ca-marche /kozz-monde /telephones-compatibles /devenir-partenaire /cgv /mentions-legales /confidentialite /retractation /remboursement
 	}
 	handle @bot_pages {
 		rewrite * /__prerender{path}.html
@@ -80,4 +81,15 @@
 	handle {
 		reverse_proxy frontend:80
 	}
+}
+
+{$DOMAIN} {
+	import site
+}
+
+# Tunnel ngrok (HTTP simple : ngrok gère le HTTPS). Actif seulement si NGROK=true dans .env ; l'adresse est NGROK_HOST.
+http://{$NGROK_HOST:ngrok.invalid} {
+	@ngrok_off `"{$NGROK:false}" != "true"`
+	respond @ngrok_off "ngrok est désactivé : mets NGROK=true dans .env puis docker compose up -d proxy backend" 404
+	import site
 }

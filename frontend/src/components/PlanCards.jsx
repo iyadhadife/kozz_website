@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { TIERS, daysLabel, eur, gbLabel } from "../data.js";
 import { useStore } from "../store.jsx";
+import BuyButton, { SoonNotice } from "./BuyButton.jsx";
 
 import { t } from "../i18n.js";
 const Check = () => (
@@ -13,6 +14,8 @@ export default function PlanCards({ dest }) {
   const { add } = useStore();
   const [info, setInfo] = useState(null);
   return (
+    <>
+    <SoonNotice />
     <motion.div className="tiers" key={dest.id} initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
       {TIERS.map((tier, i) => {
         const unl = tier.gb === Infinity;
@@ -48,7 +51,7 @@ export default function PlanCards({ dest }) {
                 </AnimatePresence>
               </div>
             )}
-            <button
+            <BuyButton
               className="btn plan-btn"
               onClick={() =>
                 add({
@@ -60,10 +63,11 @@ export default function PlanCards({ dest }) {
                   qty: 1,
                 })
               }
-            >{t("Choisir ce forfait")}</button>
+            >{t("Choisir ce forfait")}</BuyButton>
           </motion.article>
         );
       })}
     </motion.div>
+    </>
   );
 }

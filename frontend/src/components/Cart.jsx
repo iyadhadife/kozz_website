@@ -8,7 +8,7 @@ import { useStore } from "../store.jsx";
 
 import { currentLang, currentLocale, t, tx } from "../i18n.js";
 export default function Cart() {
-  const { cart, remove, open, setOpen, user, currency, fx } = useStore();
+  const { cart, remove, open, setOpen, user, currency, fx, purchases } = useStore();
   const [causeId, setCauseId] = useState("tsf");
   useEffect(() => { if (user?.cause_id) setCauseId(user.cause_id); }, [user?.cause_id]);
   const [email, setEmail] = useState("");
@@ -62,7 +62,7 @@ export default function Cart() {
   // Mobile : feuille qui monte du bas, se ferme en la tirant vers le bas par la poignée. Bureau : tiroir latéral.
   const from = phone ? { y: "100%" } : { x: rtl ? "-100%" : "100%" };
   return ( <AnimatePresence>
-      {open && (
+      {open && purchases && (
         <>
           <motion.div className="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.aside

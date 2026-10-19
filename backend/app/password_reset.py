@@ -22,7 +22,7 @@ from .db import engine
 
 log = logging.getLogger("kozz.reset")
 router = APIRouter(prefix="/api/auth/password")
-SITE_URL = os.getenv("SITE_URL", "https://localhost").rstrip("/")
+from .site import SITE_URL
 TTL_MIN = 30
 MAX_PER_HOUR = 3  # demandes par compte
 

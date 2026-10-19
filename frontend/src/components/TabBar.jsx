@@ -15,14 +15,14 @@ const Icon = ({ n }) => (
 
 // Barre d'onglets du bas : navigation au pouce sur mobile, indicateur animé qui glisse d'un onglet à l'autre
 export default function TabBar() {
-  const { cart, setOpen, user, open } = useStore();
+  const { cart, setOpen, user, open, purchases } = useStore();
   const { pathname } = useLocation();
   const tabs = [
     { k: "home", to: "/", ico: "home", label: t("Accueil"), on: pathname === "/" },
     { k: "dest", to: "/destinations", ico: "globe", label: t("Destinations"), on: pathname.startsWith("/destinations") },
     { k: "cart", ico: "bag", label: t("Panier"), on: open, badge: cart.length, action: () => setOpen(true) },
     { k: "me", to: user ? "/profil" : "/connexion", ico: "user", label: user ? t("Mon profil") : t("Connexion"), on: pathname === "/profil" || pathname === "/connexion" },
-  ];
+  ].filter((tab) => purchases || tab.k !== "cart");
   return (
     <motion.nav className="tabbar" aria-label={t("Navigation principale")} initial={{ y: 90 }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 160, damping: 20, delay: 0.3 }}>
       {tabs.map((tab) => {

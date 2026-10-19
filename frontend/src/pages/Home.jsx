@@ -1,3 +1,4 @@
+import BuyButton from "../components/BuyButton.jsx";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -56,7 +57,7 @@ function Tabs() {
               <span className="dest-name">{m.name}</span>
               <small className="muted">{m.data}</small>
               <small className="price-sm">{t("{price}/mois", { price: eur(m.price) })}</small>
-              <button className="btn btn-sm" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>{t("Ajouter")}</button>
+              <BuyButton className="btn btn-sm" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>{t("Ajouter")}</BuyButton>
             </motion.div>
           ))}
       </motion.div>

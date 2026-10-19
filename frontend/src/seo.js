@@ -8,6 +8,14 @@ import { useEffect } from "react";
 export const SITE = { name: "KozzGo", tagline: "eSIM voyage solidaire", image: "/api/og/home.png", locale: "fr_FR" };
 
 export const PAGES = {
+  "/a-propos": {
+    title: "À propos de KozzGo : eSIM de voyage solidaires",
+    description: "Qui est derrière KozzGo, notre mission, comment nous écrivons nos guides avec des sources officielles, et les informations sur la société.",
+  },
+  "/blog": {
+    title: "Blog eSIM de voyage : guides et conseils | KozzGo",
+    description: "Guides simples pour choisir, installer et utiliser ton eSIM de voyage : compatibilité, installation, data, remboursement, parrainage.",
+  },
   "/": {
     title: "eSIM voyage solidaire : data en 1 minute | KozzGo",
     description: "Reste connecté dans plus de 180 destinations avec une eSIM de voyage KozzGo. Activation en 1 minute, prix clairs, et 10 % du prix HT reversé à une cause.",
@@ -47,13 +55,17 @@ export const PAGES = {
   "/remboursement": { title: "Politique de remboursement des eSIM | KozzGo", description: "Dans quels cas ton eSIM est remboursée ou remplacée : eSIM non livrée, problème technique, délais de remboursement." },
 };
 
+const destTitle = (name, priceLabel) => {
+  const full = `eSIM ${name} dès ${priceLabel} : forfait data voyage | KozzGo`;
+  return full.length <= 60 ? full : `eSIM ${name} dès ${priceLabel} | KozzGo`;   // titre tronqué par Google au-delà de ~60 caractères
+};
 export const destinationSeo = (name, priceLabel) => ({
-  title: `eSIM ${name} dès ${priceLabel} : forfait data voyage | KozzGo`,
+  title: destTitle(name, priceLabel),
   description: `eSIM ${name} : forfaits dès ${priceLabel}, installation en 1 minute, sans frais de roaming. 10 % du prix HT reversé à une cause.`,
 });
 
 // Préfixes à ne pas indexer (balise robots noindex + exclusion du robots.txt côté serveur)
-export const NOINDEX = ["/profil", "/connexion", "/commande", "/mot-de-passe", "/mot-de-passe-oublie", "/passeport"];
+export const NOINDEX = ["/profil", "/connexion", "/commande", "/mot-de-passe", "/mot-de-passe-oublie", "/passeport", "/admin"];
 
 const setMeta = (sel, attr, val) => {
   let el = document.head.querySelector(sel);

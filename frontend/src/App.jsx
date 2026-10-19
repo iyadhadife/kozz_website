@@ -22,6 +22,10 @@ import Passport from "./pages/Passport.jsx";
 import { ForgotPassword, ResetPassword } from "./pages/PasswordReset.jsx";
 import Compatible from "./pages/Compatible.jsx";
 import FaqPage from "./pages/FaqPage.jsx";
+import About from "./pages/About.jsx";
+import Admin from "./pages/Admin.jsx";
+import Blog from "./pages/Blog.jsx";
+import BlogPost from "./pages/BlogPost.jsx";
 import Partner from "./pages/Partner.jsx";
 import RouteSeo from "./components/RouteSeo.jsx";
 import Profile from "./pages/Profile.jsx";
@@ -109,6 +113,10 @@ export default function App() {
           <Route path="/comment-ca-marche" element={<div className="page"><HowPage /></div>} />
           <Route path="/impact" element={<div className="page"><ImpactPage /></div>} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/a-propos" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/aide" element={<Navigate to="/faq" replace />} />
           <Route path="/devenir-partenaire" element={<Partner />} />
           <Route path="*" element={<div className="page"><h2 style={{ padding: "6rem 1.5rem" }}>{t("Page introuvable")}</h2></div>} />

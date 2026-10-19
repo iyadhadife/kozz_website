@@ -1,3 +1,4 @@
+import BuyButton from "../components/BuyButton.jsx";
 import GlobalImpact from "../components/GlobalImpact.jsx";
 import ImpactStats from "../components/ImpactStats.jsx";
 import CausePhoto from "../components/CausePhoto.jsx";
@@ -70,7 +71,7 @@ export function MondePage() {
             <h2>{m.name}</h2>
             <p className="big">{m.data}</p>
             <p className="price">{eur(m.price)}<small className="muted">{" "}{t("/mois")}</small></p>
-            <button className="btn" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>{t("Ajouter")}</button>
+            <BuyButton className="btn" onClick={() => add({ kind: "subscription", subscription_id: m.id, label: `Kozz Monde · ${m.name} (mensuel)`, price: m.price, qty: 1 })}>{t("Ajouter")}</BuyButton>
           </motion.article>
         ))}
       </div>

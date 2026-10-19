@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from . import features
 from . import emailkit, notify, referral, texts
 from . import security as sec
 from .db import engine
@@ -85,6 +86,12 @@ def _clean(s: Optional[str]) -> Optional[str]:
 
 
 def _profile(c, cust) -> dict:
+    out = _profile_data(c, cust)
+    out["is_admin"] = features.is_admin(cust)  # affiche le lien « Administration » ; l'accès réel est contrôlé par le serveur
+    return out
+
+
+def _profile_data(c, cust) -> dict:
     spend = c.execute(
         text(
             "SELECT COALESCE(SUM(total_ttc), 0) FROM orders WHERE customer_id = :c "

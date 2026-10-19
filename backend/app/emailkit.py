@@ -7,7 +7,7 @@ import os
 from html import escape
 
 ASSETS = os.path.join(os.path.dirname(__file__), "assets")
-SITE_URL = os.getenv("SITE_URL", "https://localhost").rstrip("/")
+from .site import SITE_URL
 CORAL, CORAL_INK, INK, MUTED, CREAM = "#ef7b63", "#d4553c", "#1d1b20", "#6b6570", "#faf7f3"
 FONT = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
 

@@ -10,6 +10,8 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-localhost}
       ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+      NGROK: ${NGROK:-false}
+      NGROK_HOST: ${NGROK_HOST:-ngrok.invalid}
     volumes:
       - caddy_data:/data      # certificats SSL (à conserver !)
       - caddy_config:/config

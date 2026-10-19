@@ -3,10 +3,10 @@ import { DESTINATIONS } from "../data.js";
 import { NOINDEX, PAGES, SITE, breadcrumbJsonLd, graph, orgJsonLd, useSeo } from "../seo.js";
 
 // Fil d'Ariane de chaque page simple : [libellé de la page]
-const CRUMB = { "/destinations": "Destinations", "/comment-ca-marche": "Comment ça marche", "/impact": "Impact", "/kozz-monde": "Kozz Monde", "/telephones-compatibles": "Téléphones compatibles eSIM", "/devenir-partenaire": "Devenir partenaire", "/cgv": "CGV", "/mentions-legales": "Mentions légales", "/confidentialite": "Confidentialité", "/retractation": "Droit de rétractation", "/remboursement": "Remboursement" };
+const CRUMB = { "/destinations": "Destinations", "/comment-ca-marche": "Comment ça marche", "/impact": "Impact", "/kozz-monde": "Kozz Monde", "/telephones-compatibles": "Téléphones compatibles eSIM", "/devenir-partenaire": "Devenir partenaire", "/a-propos": "À propos", "/cgv": "CGV", "/mentions-legales": "Mentions légales", "/confidentialite": "Confidentialité", "/retractation": "Droit de rétractation", "/remboursement": "Remboursement" };
 
 // SEO des pages « simples » : on lit PAGES dans seo.js. Les pages qui calculent leur propre SEO (fiche destination, FAQ) appellent useSeo elles-mêmes.
-const OWN = [/^\/destinations\/[^/]+$/, /^\/faq$/];
+const OWN = [/^\/destinations\/[^/]+$/, /^\/faq$/, /^\/blog$/, /^\/blog\/[^/]+$/];
 
 export default function RouteSeo() {
   const { pathname } = useLocation();

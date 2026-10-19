@@ -40,7 +40,7 @@ function Mega({ onClose }) {
 }
 
 export default function Navbar() {
-  const { cart, setOpen, user } = useStore();
+  const { cart, setOpen, user, purchases } = useStore();
   const [mega, setMega] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -77,6 +77,7 @@ export default function Navbar() {
         <NavLink to="/kozz-monde">{t("Kozz Monde")}</NavLink>
         <NavLink to="/comment-ca-marche">{t("Comment ça marche")}</NavLink>
         <NavLink to="/impact">{t("Impact")}</NavLink>
+        <NavLink to="/blog">Blog</NavLink>
         <NavLink to="/faq">{t("Aide")}</NavLink>
       </nav>
 
@@ -88,12 +89,14 @@ export default function Navbar() {
             {(user.first_name || user.email)[0].toUpperCase()}
           </Link>) : user === null ? ( <Link to="/connexion" className="btn btn-ghost nav-login">{t("Connexion")}</Link>
         ) : null}
+        {purchases && (
         <button className="btn btn-ghost nav-cart" onClick={() => setOpen(true)} aria-label={t("Ouvrir le panier")}>
           {t("Panier")}
           {cart.length > 0 && (
             <motion.span key={cart.length} className="badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>{cart.length}</motion.span>
           )}
         </button>
+        )}
         <button className="burger" aria-label={t("Menu")} aria-expanded={mobile} onClick={() => setMobile((m) => !m)}>
           <span className={`burger-ico ${mobile ? "open" : ""}`}><i /><i /><i /></span>
         </button>

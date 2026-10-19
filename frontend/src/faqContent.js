@@ -28,7 +28,7 @@ export const FAQ_GROUPS = [
       { q: "Mon téléphone est-il compatible eSIM ?", a: "La plupart des iPhone depuis le XS/XR et de nombreux Android récents (Samsung Galaxy S20 et suivants, Google Pixel 3 et suivants, entre autres) le sont. Tape ton modèle dans notre [[liste des téléphones compatibles|/telephones-compatibles]] pour vérifier." },
       { q: "Comment savoir rapidement si mon téléphone supporte l'eSIM ?", a: "Compose *#06# sur ton clavier : si un numéro EID s'affiche, ton téléphone est compatible eSIM. Tu peux aussi chercher « Ajouter une eSIM » dans les réglages de ta ligne mobile." },
       { q: "Mon téléphone doit-il être débloqué ?", a: "Oui. Un téléphone verrouillé par un opérateur (SIM lock) refuse les eSIM d'autres fournisseurs. Demande le déblocage à ton opérateur avant de partir ; c'est gratuit en France une fois le forfait terminé ou après 3 mois d'abonnement." },
-      { q: "Les iPhone vendus en Chine, à Hong Kong ou à Macao sont-ils compatibles ?", a: "Les modèles destinés à la Chine continentale n'ont généralement pas d'eSIM. Ceux de Hong Kong et de Macao en ont un, avec parfois des limites selon le modèle : vérifie dans les réglages avant d'acheter." },
+      { q: "Les iPhone vendus en Chine, à Hong Kong ou à Macao sont-ils compatibles ?", a: "Selon Apple, en Chine continentale seuls quelques modèles récents (iPhone Air, iPhone 17e et les plus récents) acceptent l'eSIM. À Hong Kong et à Macao, certains modèles ont deux emplacements nano-SIM au lieu d'une eSIM. Le plus fiable : le test *#06# (un numéro EID doit s'afficher) ou l'option « Ajouter une eSIM » dans les réglages." },
       { q: "Les tablettes, montres et ordinateurs portables sont-ils compatibles ?", a: "Certains iPad, tablettes Android et PC portables (Windows avec modem cellulaire) acceptent les eSIM de données. Retrouve-les dans notre [[liste des appareils compatibles|/telephones-compatibles]], onglets Tablettes, Montres et Ordinateurs." },
       { q: "Mon modèle n'est pas dans la liste : que faire ?", a: "La liste n'est pas exhaustive. Si ton modèle est récent, fais le test *#06# ou cherche « Ajouter une eSIM » dans les réglages : c'est la vérification la plus fiable. En cas de doute, écris-nous avant d'acheter." },
     ],
@@ -121,6 +121,9 @@ export const FAQ_GROUPS = [
     ],
   },
 ];
+
+// Ancre d'une question (#q-…) : sert à la page /faq et aux liens des articles du blog
+export const faqId = (q) => "q-" + q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").slice(0, 60);
 
 export const FAQ_FLAT = FAQ_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.id })));
 // Les 6 questions affichées sur l'accueil (clés = début de la question)

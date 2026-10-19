@@ -6,7 +6,7 @@
   --text: #1d1b20;
   --muted: #6a656e;
   --coral: #ef7b63;
-  --coral-ink: #d4553c;
+  --coral-ink: #b8402a;
   --orange: #f4a259;
   --sand: #b9651b;
   --radius: 20px;
@@ -808,3 +808,46 @@ input:focus, select:focus { transition: box-shadow .25s; box-shadow: 0 0 0 4px r
 .section .partner h2 { font-size: 1.45rem; line-height: 1.3; letter-spacing: -.01em; margin: 2rem 0 .6rem; }
 .section .partner p, .section .partner li { max-width: 760px; }
 .dest-facts { margin-top: 1rem; color: var(--muted); max-width: 760px; }
+
+/* Blog */
+.blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.1rem; }
+.blog-card { display: flex; flex-direction: column; gap: .5rem; padding: 1.4rem; background: var(--card, #fff); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); text-decoration: none; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.blog-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(0,0,0,.09); border-color: var(--coral); }
+.blog-card:active { transform: scale(.98); }
+.blog-card h2, .blog-card h3 { margin: 0; font-size: 1.12rem; line-height: 1.3; }
+.blog-card p { margin: 0; color: var(--muted); font-size: .94rem; }
+.blog-emoji { font-size: 1.8rem; }
+.blog-tag { font-size: .78rem; font-weight: 600; color: var(--coral-ink); text-transform: uppercase; letter-spacing: .04em; }
+.blog-meta { margin-top: auto; font-size: .85rem; color: var(--muted); }
+.blog-faq-link { margin-top: 1.6rem; }
+.blog-post { max-width: 760px; margin: 0 auto; padding: 5.5rem 1.2rem 3rem; }
+.blog-post h1 { font-size: clamp(1.7rem, 4.2vw, 2.4rem); line-height: 1.2; margin: .4rem 0 .6rem; }
+.blog-post h2 { font-size: 1.35rem; margin: 2.2rem 0 .6rem; }
+.blog-post p, .blog-post li { line-height: 1.7; }
+.blog-post a { color: var(--coral-ink); }
+.blog-post ul, .blog-post ol { padding-left: 1.3rem; margin: .6rem 0; }
+.blog-intro { font-size: 1.12rem; color: var(--muted); margin: 1rem 0 1.4rem; }
+.crumbs { font-size: .85rem; color: var(--muted); }
+.crumbs a { color: var(--muted); }
+.blog-cta { margin: 2.6rem 0 1rem; padding: 1.6rem; border-radius: var(--radius); background: var(--card, #fff); border: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; }
+.blog-cta h2 { flex-basis: 100%; margin: 0; }
+.blog-cta p { flex-basis: 100%; margin: 0 0 .4rem; color: var(--muted); }
+.blog-related .blog-card h3 { font-size: 1rem; }
+@media (prefers-reduced-motion: reduce) { .blog-card, .blog-card:hover { transition: none; transform: none; } }
+.blog-sched { font-style: normal; color: var(--sand); }
+.blog-draft { padding: .7rem 1rem; border-radius: 12px; background: rgba(244,162,89,.16); color: var(--text); font-size: .92rem; }
+.blog-faqs ul { list-style: none; padding: 0; display: grid; gap: .45rem; }
+.blog-faqs li a { display: block; padding: .6rem .9rem; border: 1px solid var(--line); border-radius: 12px; text-decoration: none; color: var(--text); transition: transform .18s ease, border-color .18s ease; }
+.blog-faqs li a:hover { transform: translateX(4px); border-color: var(--coral); }
+.blog-sources ul { padding-left: 1.2rem; }
+.blog-sources a::after { content: " ↗"; font-size: .8em; }
+.about-author { display: flex; gap: 1rem; align-items: flex-start; padding: 1.2rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card, #fff); margin: 1rem 0; }
+.about-avatar { flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--coral); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 1.3rem; }
+.btn-soon, .btn-soon:hover { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; background: var(--line); color: var(--muted); }
+.soon-note { margin: 0 0 1rem; padding: .8rem 1rem; border-radius: 14px; background: rgba(244,162,89,.16); border: 1px solid rgba(244,162,89,.45); font-weight: 600; }
+.admin-card { padding: 1.5rem; margin-top: 1.2rem; }
+.admin-card h2 { margin-top: 0; }
+.admin-state { font-weight: 600; padding: .8rem 1rem; border-radius: 14px; background: rgba(244,162,89,.14); }
+.admin-state.on { background: rgba(80,170,110,.14); }
+.admin-actions { margin: 1rem 0; }
+.admin-note { font-size: .9rem; }

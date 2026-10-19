@@ -18,6 +18,11 @@ const loadCart = () => {
 export function StoreProvider({ children }) {
   const [cart, setCart] = useState(loadCart);
   const [open, setOpen] = useState(false);
+  // Achats ouverts ? (PURCHASES_ENABLED côté serveur). Dernière valeur connue gardée pour éviter un clignotement ; ouvert par défaut.
+  const [purchases, setPurchases] = useState(() => { try { return sessionStorage.getItem("kozz_purchases") !== "off"; } catch { return true; } });
+  useEffect(() => {
+    api("/config").then((c) => { setPurchases(!!c.purchases_enabled); try { sessionStorage.setItem("kozz_purchases", c.purchases_enabled ? "on" : "off"); } catch {} }).catch(() => {});
+  }, []);
   const [user, setUser] = useState(undefined); // undefined = chargement, null = déconnecté
   const [lang, setLangCode] = useState(initialLang);
   const setLang = async (code) => {
@@ -81,11 +86,12 @@ export function StoreProvider({ children }) {
   }, [cart]);
 
   const add = (item) => {
+    if (!purchases) return;
     setCart((c) => [...c, { ...item, uid: crypto.randomUUID() }]);
     setOpen(true);
   };
   const remove = (uid) => setCart((c) => c.filter((i) => i.uid !== uid));
-  const checkout = () => setCart([]); return ( <Ctx.Provider value={{ cart, add, remove, open, setOpen, checkout, currency, setCurrency, fx, lang, setLang, user, setUser, login, register, verifyRegister, resendRegister, logout }}>
+  const checkout = () => setCart([]); return ( <Ctx.Provider value={{ purchases, setPurchases, cart, add, remove, open, setOpen, checkout, currency, setCurrency, fx, lang, setLang, user, setUser, login, register, verifyRegister, resendRegister, logout }}>
       {children}
     </Ctx.Provider>
   );

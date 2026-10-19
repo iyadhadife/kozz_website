@@ -21,7 +21,7 @@ from .auth import _impact
 from .db import engine
 
 router = APIRouter(prefix="/api/og")
-SITE_URL = os.getenv("SITE_URL", "https://localhost").rstrip("/")
+from .site import SITE_URL
 HOST = SITE_URL.split("://", 1)[-1]
 
 W, H = 1200, 630

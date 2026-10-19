@@ -1,3 +1,4 @@
+import BuyButton from "../components/BuyButton.jsx";
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -239,7 +240,7 @@ function Cards() {
         </ul>
       )}
       <Feedback f={fb} />
-      {cards !== false && <button type="button" className="btn" disabled={busy} onClick={add}>{busy ? "…" : t("Ajouter une carte")}</button>}
+      {cards !== false && <BuyButton disabled={busy} onClick={add}>{busy ? "…" : t("Ajouter une carte")}</BuyButton>}
       <p className="muted note">{t("Les reçus de paiement sont envoyés par Stripe, et ta facture KozzGo est dans « Mes commandes ».")}</p>
     </div>
   );
@@ -464,6 +465,7 @@ export default function Profile() {
     {
       title: t("Assistance"),
       rows: [
+        ...(user.is_admin ? [{ key: "admin", icon: "🛠️", title: "Administration", sub: "Activer ou désactiver les achats", to: "/admin" }] : []),
         { key: "aide", icon: "🛟", title: t("Centre d'aide"), sub: t("Guide, compatibilité, contact"), to: "/faq" },
         { key: "cgv", icon: "📄", title: t("Conditions d'utilisation"), sub: t("Informations légales"), to: "/cgv" },
         { key: "conf", icon: "🔒", title: t("Politique de confidentialité"), sub: t("Vos données"), to: "/confidentialite" },

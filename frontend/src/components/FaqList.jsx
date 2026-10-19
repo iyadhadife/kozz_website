@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { parseLinks } from "../faqContent.js";
+import { parseLinks, faqId } from "../faqContent.js";
 
 // Réponse avec liens internes ([[texte|/chemin]])
 export const Answer = ({ text }) => (
@@ -10,11 +10,16 @@ export const Answer = ({ text }) => (
 
 // Accordéon SEO-friendly : la réponse est TOUJOURS dans le HTML (seulement repliée visuellement), la question est un titre h3.
 export default function FaqList({ items, openId }) {
-  const [open, setOpen] = useState(openId || null);
+  const [open, setOpen] = useState(openId || (location.hash.startsWith("#q-") ? location.hash.slice(1) : null));
+  // Lien profond depuis le blog (/faq#q-…) : ouvre la question et la fait défiler à l'écran
+  useEffect(() => {
+    const id = location.hash.startsWith("#q-") ? location.hash.slice(1) : null;
+    if (id && items.some((f) => faqId(f.q) === id)) { setOpen(id); setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "center", behavior: "smooth" }), 350); }
+  }, []);
   return (
     <div className="faq">
       {items.map((f) => {
-        const id = "q-" + f.q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").slice(0, 60);
+        const id = faqId(f.q);
         const isOpen = open === id;
         return (
           <div key={f.q} className={`faq-item ${isOpen ? "open" : ""}`} id={id}>
