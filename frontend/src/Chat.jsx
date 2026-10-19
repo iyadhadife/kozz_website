@@ -82,7 +82,7 @@ export default function Chat() {
               ))}
               {busy && <div className="msg bot typing"><i /><i /><i /></div>}
             </div>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={t("Écris un message…")} />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={t("Écris un message…")} aria-label={t("Écris un message…")} />
           </motion.form>
         )}
       </AnimatePresence>

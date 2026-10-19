@@ -16,6 +16,15 @@ const STEPS = [
   ["Active et connecte-toi", "Scanne le QR code dans les réglages de ton téléphone : la durée démarre à ta première connexion."],
 ];
 
+// Résumé chiffré propre à chaque pays (texte généré à partir des prix réels : utile aux lecteurs et aux moteurs, pas un texte répété à l'identique)
+function summary(d) {
+  const per = TIERS.map((tr, k) => ({ tr, k, gb: tr.gb === Infinity ? null : d.prices[k] / tr.gb })).filter((x) => x.gb !== null);
+  const best = per.reduce((a, b) => (b.gb < a.gb ? b : a));
+  const cheapest = Math.min(...d.prices);
+  const unl = TIERS.findIndex((tr) => tr.gb === Infinity);
+  return `eSIM ${d.name} : ${TIERS.length} forfaits de ${eur(cheapest)} (${TIERS[0].gb} Go, ${TIERS[0].days} jours) à ${eur(Math.max(...d.prices))}. Le forfait ${best.tr.name} (${best.tr.gb} Go, ${best.tr.days} jours) est le plus avantageux au Go : ${eur(best.gb)} le Go.${unl >= 0 ? ` Pour une utilisation intensive, l'offre Illimité coûte ${eur(d.prices[unl])} pour ${TIERS[unl].days} jours.` : ""} Zone : ${d.zone}.`;
+}
+
 // Fiche destination : en-tête avec atouts, forfaits détaillés, vérification du téléphone et estimation de data, 4 étapes.
 export default function Destination() {
   const { id } = useParams();
@@ -25,8 +34,11 @@ export default function Destination() {
     ...destinationSeo(dest.name, eur(price)),
     path: `/destinations/${dest.id}`,
     jsonLd: { "@context": "https://schema.org", "@graph": [
-      { "@type": "Product", name: `eSIM ${dest.name}`, description: `Forfaits data eSIM pour voyager en ${dest.name}, activation en 1 minute.`, brand: { "@type": "Brand", name: "KozzGo" },
-        offers: { "@type": "AggregateOffer", priceCurrency: "EUR", lowPrice: String(price), highPrice: String(Math.max(...dest.prices)), offerCount: dest.prices.length, availability: "https://schema.org/InStock", url: `${location.origin}/destinations/${dest.id}` } },
+      { "@type": "Product", "@id": `${location.origin}/destinations/${dest.id}#product`, name: `eSIM ${dest.name}`, sku: `ESIM-${dest.id.toUpperCase()}`,
+        description: `Forfaits data eSIM pour voyager en ${dest.name}, activation en 1 minute, sans frais de roaming.`,
+        image: `${location.origin}/api/og/destinations/${dest.id}.png`, brand: { "@type": "Brand", name: "KozzGo" },
+        offers: { "@type": "AggregateOffer", priceCurrency: "EUR", lowPrice: Math.min(...dest.prices), highPrice: Math.max(...dest.prices), offerCount: dest.prices.length,
+          offers: TIERS.map((tr, k) => ({ "@type": "Offer", name: `eSIM ${dest.name} ${tr.name}`, price: dest.prices[k], priceCurrency: "EUR", availability: "https://schema.org/InStock", url: `${location.origin}/destinations/${dest.id}` })) } },
       breadcrumbJsonLd([["Accueil", "/"], ["Destinations", "/destinations"], [dest.name, `/destinations/${dest.id}`]]) ] },
   } : {});
   if (!dest) return <Navigate to="/destinations" replace />;
@@ -53,6 +65,7 @@ export default function Destination() {
 
       <Section title={t("Choisis ton forfait")} subtitle={t("Le forfait démarre à ta première connexion sur place.")}>
         <PlanCards dest={dest} />
+        <p className="dest-facts">{summary(dest)}</p>
         <p className="muted note">{t("Forfait Illimité : fair use affiché dès l'achat. Besoin d'aide pour choisir ?")}{" "}<Link to="/#assistant" className="accent">{t("Essaie l'assistant")}</Link>.
         </p>
       </Section>

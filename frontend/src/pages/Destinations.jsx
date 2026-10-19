@@ -30,7 +30,7 @@ export default function Destinations() {
       <p className="muted dest-count" aria-live="polite">{tn(list.length, "{n} destination", "{n} destinations")}</p>
       <div className="chips">
         {["", ...ZONES].map((z) => (
-          <button key={z || "all"} className={`chip ${zone === z ? "on" : ""}`} onClick={() => setZone(z)}>
+          <button key={z || "all"} className={`chip ${zone === z ? "on" : ""}`} aria-pressed={!!(zone === z)} onClick={() => setZone(z)}>
             {zone === z && <motion.span layoutId="zonechip" className="chip-bg" />}
             <span>{z ? t(z) : t("Toutes")}</span>
           </button>

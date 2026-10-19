@@ -14,6 +14,25 @@
 		-Server
 	}
 
+	# Robots qui n'exécutent pas (ou mal) le JavaScript : IA, Bing, DuckDuckGo, Yandex, Baidu, Apple. Ils reçoivent l'instantané HTML RENDU de la page
+	# (même contenu que les visiteurs ; généré par scripts/prerender.mjs). Googlebot exécute le JS : il reste sur la SPA.
+	@bot_home {
+		header_regexp User-Agent (?i)(gptbot|chatgpt-user|oai-searchbot|claudebot|claude-user|claude-searchbot|anthropic-ai|perplexitybot|perplexity-user|ccbot|bytespider|amazonbot|duckassistbot|meta-externalagent|cohere-ai|diffbot|youbot|bingbot|duckduckbot|yandexbot|baiduspider|applebot)
+		path /
+	}
+	handle @bot_home {
+		rewrite * /__prerender/index.html
+		reverse_proxy frontend:80
+	}
+	@bot_pages {
+		header_regexp User-Agent (?i)(gptbot|chatgpt-user|oai-searchbot|claudebot|claude-user|claude-searchbot|anthropic-ai|perplexitybot|perplexity-user|ccbot|bytespider|amazonbot|duckassistbot|meta-externalagent|cohere-ai|diffbot|youbot|bingbot|duckduckbot|yandexbot|baiduspider|applebot)
+		path /destinations /destinations/* /faq /impact /comment-ca-marche /kozz-monde /telephones-compatibles /devenir-partenaire /cgv /mentions-legales /confidentialite /retractation /remboursement
+	}
+	handle @bot_pages {
+		rewrite * /__prerender{path}.html
+		reverse_proxy frontend:80
+	}
+
 	# Robots d'aperçu de liens (WhatsApp, iMessage, Slack, X, LinkedIn, Facebook, Telegram, Discord ; pas les moteurs de recherche, qui exécutent le JS) : balises Open Graph
 	# rendues côté serveur pour l'accueil, les fiches destination et les passeports partagés. Les humains ne passent jamais par là.
 	@crawler_home {
@@ -34,6 +53,10 @@
 	}
 
 	# sitemap.xml et robots.txt générés par le backend (liste des destinations à jour, adresse du site depuis .env)
+	handle /llms.txt {
+		rewrite * /api/seo/llms.txt
+		reverse_proxy backend:8000
+	}
 	handle /sitemap.xml {
 		rewrite * /api/seo/sitemap.xml
 		reverse_proxy backend:8000

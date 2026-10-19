@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Section from "../components/Section.jsx";
-import { PAGES, breadcrumbJsonLd, useSeo } from "../seo.js";
+import { PAGES, breadcrumbJsonLd, graph, useSeo } from "../seo.js";
 
 // Page « actif à liens » (linkable asset) : elle donne aux blogs, médias et associations tout ce qu'il faut pour faire un lien propre vers KozzGo.
 // Les ancres proposées sont modifiables ci-dessous ; elles varient exprès (liens naturels, pas 100 % d'ancres identiques).
@@ -29,7 +29,7 @@ function Snippet({ label, code }) {
 
 export default function Partner() {
   const o = location.origin;
-  useSeo({ ...PAGES["/devenir-partenaire"], path: "/devenir-partenaire", jsonLd: breadcrumbJsonLd([["Accueil", "/"], ["Devenir partenaire", "/devenir-partenaire"]]) });
+  useSeo({ ...PAGES["/devenir-partenaire"], path: "/devenir-partenaire", jsonLd: graph(breadcrumbJsonLd([["Accueil", "/"], ["Devenir partenaire", "/devenir-partenaire"]])) });
   const badge = `<a href="${o}/" title="KozzGo : eSIM de voyage solidaire" rel="noopener"><img src="${o}/badge/kozzgo-badge.svg" alt="KozzGo, eSIM de voyage solidaire" width="240" height="64" loading="lazy"></a>`;
   return (
     <div className="page">

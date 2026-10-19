@@ -47,7 +47,7 @@ export default function Hero() {
         <motion.div className="hero-inner" animate={{ x: wide && !shifted ? "-51%" : 0 }} transition={{ type: "spring", stiffness: 55, damping: 15 }}>
           <motion.div className="hero-copy" variants={container} initial="hidden" animate={intro ? "hidden" : "show"}>
             <motion.span className="pill" variants={item}>{t("eSIM voyage solidaires")}</motion.span>
-            <motion.h1 variants={item}>{t("Voyagez connecté.")}<br />{tx("Voyagez {u}", { u: <span className="accent">{t("utile.")}</span> })}</motion.h1>
+            <motion.h1 variants={item}>{t("Voyagez connecté.")}{" "}<br />{tx("Voyagez {u}", { u: <span className="accent">{t("utile.")}</span> })}</motion.h1>
             <motion.p className="lead" variants={item}>{t("Chaque eSIM finance une cause que tu choisis. Ton impact est visible dans l'appli.")}{" "}</motion.p>
             <motion.div className="hero-search" variants={item}><SearchBox /></motion.div>
             <motion.ul className="stats" variants={item}>

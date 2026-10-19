@@ -1,0 +1,3 @@
+# Audit technique KozzGo (local) - 74/100
+Problemes: (1) soft-404 : /nonexistent-xyz et /destinations/zzzz = 200 (nginx try_files /index.html; SPA doit poser noindex sur NotFound). (2) HSTS sans includeSubDomains/preload. (3) pas de hreflang/URL par langue. (4) index.html sans Cache-Control explicite. (5) /destinations 197 requetes (drapeaux). (6) Googlebot recoit coquille SPA 716 o. (7) pas de X-Frame-Options (CSP frame-ancestors couvre). (8) head statique sans canonical/OG.
+Bon : robots.txt, sitemap (dynamique), HTTP->HTTPS 308, CSP stricte, gzip/zstd, assets immutable 1 an, prerender bots, canonical/robots/h1 uniques sur pages rendues, viewport ok.

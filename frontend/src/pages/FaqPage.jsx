@@ -38,8 +38,8 @@ export default function FaqPage() {
           {q && <button type="button" className="search-clear" onClick={() => setQ("")} aria-label={t("Effacer la recherche")}>✕</button>}
         </div>
         <nav className="chips" aria-label="Thèmes de la FAQ">
-          <button className={`chip ${!group ? "on" : ""}`} onClick={() => setGroup("")}><span>Tout</span></button>
-          {FAQ_GROUPS.map((g) => <button key={g.id} className={`chip ${group === g.id ? "on" : ""}`} onClick={() => setGroup(g.id)}><span>{g.title}</span></button>)}
+          <button className={`chip ${!group ? "on" : ""}`} aria-pressed={!!(!group)} onClick={() => setGroup("")}><span>Tout</span></button>
+          {FAQ_GROUPS.map((g) => <button key={g.id} className={`chip ${group === g.id ? "on" : ""}`} aria-pressed={!!(group === g.id)} onClick={() => setGroup(g.id)}><span>{g.title}</span></button>)}
         </nav>
         {total === 0 && <p className="muted">Aucune question ne correspond. Écris-nous : un humain te répond.</p>}
         {groups.map((g) => (

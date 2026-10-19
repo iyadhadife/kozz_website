@@ -46,7 +46,7 @@ export function HelpPage() {
   const items = cat === "Tout" ? FAQ : FAQ.filter((f) => f.cat === cat); return ( <Section title={t("Centre d'aide")} subtitle={t("Installation garantie : si ça ne s'installe pas, un humain prend le relais en moins de 5 minutes.")}>
       <div className="chips">
         {["Tout", ...cats].map((c) => (
-          <button key={c} className={`chip ${cat === c ? "on" : ""}`} onClick={() => setCat(c)}>
+          <button key={c} className={`chip ${cat === c ? "on" : ""}`} aria-pressed={!!(cat === c)} onClick={() => setCat(c)}>
             {cat === c && <motion.span layoutId="helpchip" className="chip-bg" />}
             <span>{c}</span>
           </button>

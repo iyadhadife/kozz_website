@@ -97,13 +97,19 @@ export function useSeo({ title, description, path, noindex = false, jsonLd }) {
 export const orgJsonLd = () => ({
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": location.origin + "/#org", name: SITE.name, url: location.origin, logo: location.origin + "/logo.svg", slogan: SITE.tagline },
+    { "@type": "Organization", "@id": location.origin + "/#org", name: SITE.name, url: location.origin, slogan: SITE.tagline,
+      description: "eSIM de voyage dans plus de 180 destinations : 10 % du prix hors taxes de chaque achat est reversé à une cause choisie par le client.",
+      logo: { "@type": "ImageObject", url: location.origin + "/logo-512.png", width: 512, height: 512 },
+      // sameAs : ajoute ici les URL officielles de KozzGo (LinkedIn, Instagram, YouTube…) dès qu'elles existent : signal d'entité pour Google et les IA
+    },
     { "@type": "WebSite", "@id": location.origin + "/#site", url: location.origin, name: SITE.name, inLanguage: "fr", publisher: { "@id": location.origin + "/#org" } },
   ],
 });
 
 export const breadcrumbJsonLd = (items) => ({
-  "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: items.map(([name, path], i) => ({ "@type": "ListItem", position: i + 1, name, item: location.origin + path })),
 });
+
+// Enveloppe un ou plusieurs nœuds schema.org dans un @graph valide
+export const graph = (...nodes) => ({ "@context": "https://schema.org", "@graph": nodes.flat().filter(Boolean) });

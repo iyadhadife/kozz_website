@@ -29,7 +29,7 @@ function Tabs() {
   const popular = POPULAR.map((id) => DESTINATIONS.find((d) => d.id === id)); return ( <Section id="destinations" title={t("Où pars-tu ?")} subtitle={t("Choisis ta destination, on s'occupe du reste.")}>
       <div className="chips">
         {TABS.map(([k, l]) => (
-          <button key={k} className={`chip ${tab === k ? "on" : ""}`} onClick={() => setTab(k)}>
+          <button key={k} className={`chip ${tab === k ? "on" : ""}`} aria-pressed={!!(tab === k)} onClick={() => setTab(k)}>
             {tab === k && <motion.span layoutId="hometab" className="chip-bg" />}
             <span>{t(l)}</span>
           </button>

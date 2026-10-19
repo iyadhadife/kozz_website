@@ -39,15 +39,15 @@ export default function Compatible() {
       <input className="filter" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher un appareil ou une marque…")} aria-label={t("Rechercher un appareil ou une marque…")} />
       <div className="chips">
         {CATS.map(([k, l]) => (
-          <button key={k} className={`chip ${cat === k ? "on" : ""}`} onClick={() => { setCat(k); setBrand(""); }}>
+          <button key={k} className={`chip ${cat === k ? "on" : ""}`} aria-pressed={!!(cat === k)} onClick={() => { setCat(k); setBrand(""); }}>
             {cat === k && <motion.span layoutId="compat-cat" className="chip-bg" />}<span>{t(l)}</span>
           </button>
         ))}
       </div>
       <div className="chips brands">
-        <button className={`chip ${!brand ? "on" : ""}`} onClick={() => setBrand("")}>{!brand && <motion.span layoutId="compat-brand" className="chip-bg" />}<span>{t("Toutes")}</span></button>
+        <button className={`chip ${!brand ? "on" : ""}`} aria-pressed={!!(!brand)} onClick={() => setBrand("")}>{!brand && <motion.span layoutId="compat-brand" className="chip-bg" />}<span>{t("Toutes")}</span></button>
         {brands.slice(0, 14).map(([b, n]) => (
-          <button key={b} className={`chip ${brand === b ? "on" : ""}`} onClick={() => setBrand(b)}>
+          <button key={b} className={`chip ${brand === b ? "on" : ""}`} aria-pressed={!!(brand === b)} onClick={() => setBrand(b)}>
             {brand === b && <motion.span layoutId="compat-brand" className="chip-bg" />}<span>{b === "Autres" ? t("Autres marques") : b} <small>{n}</small></span>
           </button>
         ))}

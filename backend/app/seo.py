@@ -45,7 +45,35 @@ def sitemap():
 
 @router.get("/robots.txt")
 def robots():
-    lines = ["User-agent: *", "Allow: /", *[f"Disallow: {p}" for p in DISALLOW], "", f"Sitemap: {SITE_URL}/sitemap.xml", ""]
+    lines = ["User-agent: *", "Content-Signal: search=yes, ai-input=yes", "Allow: /", *[f"Disallow: {p}" for p in DISALLOW], "", f"Sitemap: {SITE_URL}/sitemap.xml", ""]
     # Les robots d'aperçu de liens ont besoin de /api/og/ (images de partage) : on l'autorise explicitement
     lines.insert(2, "Allow: /api/og/")
     return Response("\n".join(lines), media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.get("/llms.txt")
+def llms():
+    """Résumé du site pour les assistants IA (format llms.txt). Optionnel : Google Search l'ignore, certains assistants le lisent."""
+    with engine.connect() as c:
+        dests = c.execute(text("SELECT d.id, d.name FROM destinations d JOIN plans p ON p.destination_id = d.id GROUP BY d.id, d.name, d.position ORDER BY d.position LIMIT 12")).all()
+    top = "\n".join(f"- [eSIM {n}]({SITE_URL}/destinations/{i})" for i, n in dests)
+    body = f"""# KozzGo
+
+> KozzGo vend des eSIM de voyage (forfaits de data, sans carte SIM physique) dans plus de 180 destinations. 10 % du prix hors taxes de chaque achat est reversé à une cause choisie par le client parmi 12. Site en français ; paiement par carte (Stripe) ; prix TTC en euros ou dans la devise du client.
+
+## À lire en priorité
+- [FAQ : installation, compatibilité, remboursement]({SITE_URL}/faq): 57 réponses sur l'eSIM de voyage.
+- [Comment ça marche]({SITE_URL}/comment-ca-marche): installer une eSIM en 1 minute.
+- [Téléphones compatibles eSIM]({SITE_URL}/telephones-compatibles): plus de 700 modèles, test rapide *#06#.
+- [Impact]({SITE_URL}/impact): dons générés et causes soutenues.
+- [Toutes les destinations]({SITE_URL}/destinations): fiches par pays avec prix.
+
+## Destinations
+{top}
+
+## Conditions
+- [Remboursement]({SITE_URL}/remboursement)
+- [Conditions générales de vente]({SITE_URL}/cgv)
+- [Confidentialité]({SITE_URL}/confidentialite)
+"""
+    return Response(body, media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
